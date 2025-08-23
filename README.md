@@ -5,7 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9+-blue.svg)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL-blue.svg)](https://www.postgresql.org/)
+[![Database](https://img.shields.io/badge/Database-MongoDB-green.svg)](https://www.mongodb.com/)
 
 ## 📋 Table of Contents
 
@@ -77,7 +77,7 @@ The AI Acquisition Agent is a sophisticated, lender-grade residential valuation 
 - **Runtime**: Node.js 18+ with TypeScript
 - **Framework**: Slack Bolt framework for bot integration
 - **AI**: OpenAI GPT-4 for natural language processing
-- **Database**: PostgreSQL with Prisma ORM
+- **Database**: MongoDB with Mongoose ODM
 - **Validation**: Zod for schema validation
 - **Development**: Nodemon, ts-node for hot reloading
 
@@ -85,7 +85,7 @@ The AI Acquisition Agent is a sophisticated, lender-grade residential valuation 
 
 ### Prerequisites
 - Node.js 18+ and npm
-- PostgreSQL database
+- MongoDB (local) or MongoDB Atlas (production)
 - OpenAI API key
 - Slack app credentials
 
@@ -104,8 +104,11 @@ cp .env.example .env
 
 ### 3. Database Setup
 ```bash
-npx prisma generate
-npx prisma db push
+# For local MongoDB
+npm run db:start
+
+# Or connect to MongoDB Atlas (production)
+# Update MONGODB_URI in .env file
 ```
 
 ### 4. Start the Bot
@@ -123,8 +126,9 @@ npm run dev
    ```
 
 2. **Database Setup**
-   - Choose your PostgreSQL provider (see [Database Setup Guide](DATABASE_SETUP.md))
-   - Update `DATABASE_URL` in your `.env` file
+   - Use local MongoDB for development (see [Database Setup Guide](DATABASE_SETUP.md))
+   - Use MongoDB Atlas for production
+   - Update `MONGODB_URI` in your `.env` file
 
 3. **Slack App Configuration**
    - Create a new Slack app at [api.slack.com](https://api.slack.com/apps)
@@ -143,7 +147,8 @@ Create a `.env` file in the project root:
 
 ```bash
 # Database
-DATABASE_URL="postgresql://username:password@localhost:5432/acquisitions_agent"
+MONGODB_URI="mongodb://localhost:27017/acquisitions_agent"
+# For MongoDB Atlas: MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/acquisitions_agent"
 
 # OpenAI
 OPENAI_API_KEY="your-openai-api-key"
@@ -270,19 +275,20 @@ The system uses PostgreSQL for professional-grade data storage. See [DATABASE_SE
 ### Quick Database Setup
 
 ```bash
-# Install PostgreSQL (macOS)
-brew install postgresql
-brew services start postgresql
+# Install MongoDB (macOS)
+brew install mongodb-community
+brew services start mongodb-community
 
-# Create database
-createdb acquisitions_agent
+# Or use MongoDB Atlas (cloud)
+# 1. Create account at mongodb.com
+# 2. Create cluster and get connection string
+# 3. Update MONGODB_URI in .env
 
-# Initialize schema
-npx prisma generate
-npx prisma db push
+# Start local MongoDB service
+npm run db:start
 ```
 
-### Database Schema
+### Database Collections
 
 - **User**: Slack users with engagement metrics
 - **Channel**: Slack channels and metadata  
@@ -325,8 +331,8 @@ ai-acquisition-agent/
 │   ├── database.ts        # Database connection and utilities
 │   ├── mongo-service.ts   # MongoDB service (legacy)
 │   └── model-config.ts    # AI model configuration
-├── prisma/                # Database schema and migrations
-│   └── schema.prisma      # Prisma schema definition
+├── prisma/                # Database schema (legacy)
+│   └── schema.prisma      # Prisma schema (legacy)
 ├── data/                  # Data storage (legacy file-based)
 ├── docs/                  # Documentation
 └── package.json           # Dependencies and scripts
@@ -336,7 +342,7 @@ ai-acquisition-agent/
 
 1. **Make Changes**: Edit TypeScript files in `src/`
 2. **Auto-Reload**: Nodemon automatically restarts on file changes
-3. **Database Changes**: Update `prisma/schema.prisma` and run `npx prisma db push`
+3. **Database Changes**: Update MongoDB schemas in `src/mongo-schema.ts` and restart the service
 4. **Testing**: Use `/learn` and `/feedback` commands to test improvements
 
 ## 🤝 Contributing

@@ -1,0 +1,175 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2025-08-22",
+  "currency": "USD",
+  "units": {
+    "distance": "miles",
+    "gla": "sqft"
+  },
+  "rules": {
+    "distance": {
+      "urban_suburban_max": 1.0,
+      "rural_max": 10.0,
+      "condo_preference": "same_complex_or_within_1_mile",
+      "allow_exceed_with_justification": true
+    },
+    "recency_months": {
+      "preferred_max": 6,
+      "absolute_max": 12,
+      "allow_exceed_with_justification": false
+    },
+    "property_type": {
+      "must_match": true,
+      "allowed_types": [
+        "single_family",
+        "condo",
+        "townhouse",
+        "manufactured_mobile"
+      ],
+      "mixing_allowed_if_no_alternatives": true,
+      "mixing_requires_justification": true
+    },
+    "size_layout": {
+      "gla_percent_range": {
+        "min": -0.2,
+        "max": 0.2
+      },
+      "bed_bath_similarity": "similar_counts_preferred_adjust_if_needed",
+      "style_similarity": "avoid_drastic_differences_ranch_vs_colonial_unless_justified"
+    },
+    "lot_location": {
+      "lot_size_percent_range": {
+        "min": -0.25,
+        "max": 0.25
+      },
+      "avoid_boundaries": [
+        "different_school_district",
+        "different_neighborhood",
+        "across_major_highway"
+      ],
+      "boundary_crossing_requires_justification": true
+    },
+    "condition_quality": {
+      "match_condition_preferred": true,
+      "condition_scale": [
+        "poor",
+        "fair",
+        "average",
+        "renovated",
+        "like_new"
+      ],
+      "if_different_apply_market_adjustment": true
+    },
+    "adjustments": {
+      "bedroom": {
+        "min": 5000,
+        "max": 15000
+      },
+      "bathroom": {
+        "min": 10000,
+        "max": 25000
+      },
+      "gla_per_sqft": {
+        "min": 30,
+        "max": 60
+      },
+      "garage_space": {
+        "min": 5000,
+        "max": 15000
+      },
+      "renovation_condition": {
+        "typical_range_min": 20000,
+        "typical_range_max": 50000,
+        "market_dependent": true
+      },
+      "basement_finished_space": {
+        "market_dependent": true
+      }
+    },
+    "adjustment_limits": {
+      "single_item_pct_of_sale_price_max": 0.15,
+      "net_total_pct_max": 0.25,
+      "gross_total_pct_max": 0.15
+    },
+    "required_comps": {
+      "closed_sales_min": 3,
+      "active_or_pending_recommended": {
+        "min": 1,
+        "max": 2
+      }
+    }
+  },
+  "selection_scoring": {
+    "weights": {
+      "distance": 0.25,
+      "recency": 0.25,
+      "gla_similarity": 0.2,
+      "condition_similarity": 0.15,
+      "location_boundary": 0.1,
+      "property_type_match": 0.03,
+      "style_match": 0.02
+    },
+    "normalize": true,
+    "notes": "Use weighted score to rank candidate comps before adjustments."
+  },
+  "constraints": {
+    "min_candidate_pool": 10,
+    "fallback": {
+      "expand_recency_to_months": 12,
+      "expand_distance_miles": 3,
+      "allow_style_mismatch_with_justification": true
+    }
+  },
+  "output_format": {
+    "subject_required_fields": [
+      "address",
+      "lat",
+      "lon",
+      "property_type",
+      "gla_sqft",
+      "beds",
+      "baths",
+      "lot_sqft",
+      "condition",
+      "year_built",
+      "notes"
+    ],
+    "comp_required_fields": [
+      "mls_id",
+      "address",
+      "sale_date",
+      "sale_price",
+      "distance_miles",
+      "gla_sqft",
+      "beds",
+      "baths",
+      "lot_sqft",
+      "condition",
+      "adjustments",
+      "adjusted_price",
+      "net_pct",
+      "gross_pct",
+      "justification"
+    ],
+    "justification_required_when": [
+      "distance_exceeds_urban_suburban_max",
+      "recency_over_preferred",
+      "property_type_mismatch",
+      "lot_or_gla_outside_range",
+      "boundary_crossed",
+      "any_limit_exceeded"
+    ]
+  },
+  "prompts": {
+    "system": "You are a residential real estate valuation assistant that follows lender-grade appraisal comping rules.",
+    "instructions": [
+      "Select the most similar, most recent, and nearest comps first.",
+      "Do not exceed adjustment limits (15% single, 25% net, 15% gross).",
+      "Provide concise justification whenever a rule is bent.",
+      "Include at least 3 closed sales and 1 active/pending if available."
+    ],
+    "failure_modes": [
+      "If no comps meet distance and recency, expand per constraints.fallback and state why."
+    ]
+  }
+}

@@ -1,0 +1,190 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User interactions with the bot
+model Interaction {
+  id          String   @id @default(cuid())
+  type        String   // 'command' or 'mention'
+  userId      String   // Slack user ID
+  channelId   String   // Slack channel ID
+  request     String   // User's request
+  response    String   // Bot's response
+  success     Boolean  // Whether the interaction succeeded
+  timestamp   DateTime @default(now())
+  
+  // Metadata for business intelligence
+  model       String?  // OpenAI model used
+  tokens      Int?     // Tokens consumed
+  responseTime Int?    // Response time in milliseconds
+  errorCode   String?  // Error code if failed
+  errorMessage String? // Error message if failed
+  
+  // Business context
+  propertyAddress String? // Extracted property address
+  requestType     String? // Type of request (analysis, comp, etc.)
+  userRole        String? // User's role in organization
+  
+  // Relationships
+  user        User        @relation(fields: [userId], references: [slackId])
+  channel     Channel     @relation(fields: [channelId], references: [slackId])
+  feedback    Feedback[]  // Related feedback
+  
+  // Indexes for performance
+  @@index([userId, timestamp])
+  @@index([channelId, timestamp])
+  @@index([success, timestamp])
+  @@index([propertyAddress])
+  @@index([requestType])
+}
+
+// User information and engagement tracking
+model User {
+  id          String   @id @default(cuid())
+  slackId     String   @unique // Slack user ID
+  email       String?  @unique
+  name        String?
+  role        String?  // Role in organization
+  department  String?  // Department/team
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  lastActive  DateTime @default(now())
+  
+  // Engagement metrics
+  totalInteractions Int @default(0)
+  successfulInteractions Int @default(0)
+  averageResponseTime Float? // Average response time in ms
+  
+  // Relationships
+  interactions Interaction[]
+  feedback    Feedback[]
+  conversations Conversation[]
+  
+  @@index([role, department])
+  @@index([isActive, lastActive])
+}
+
+// Channel information
+model Channel {
+  id          String   @id @default(cuid())
+  slackId     String   @unique // Slack channel ID
+  name        String?
+  isPrivate   Boolean  @default(false)
+  memberCount Int?
+  createdAt   DateTime @default(now())
+  
+  // Relationships
+  interactions Interaction[]
+  feedback    Feedback[]
+  conversations Conversation[]
+}
+
+// Conversation history for context
+model Conversation {
+  id          String   @id @default(cuid())
+  userId      String
+  channelId   String
+  timestamp   DateTime @default(now())
+  userMessage String
+  botResponse String
+  
+  // Context extraction
+  hasAddress     Boolean @default(false)
+  addressCount   Int     @default(0)
+  messageLength  Int
+  hasQuestions   Boolean @default(false)
+  hasNumbers     Boolean @default(false)
+  
+  // Business context
+  propertyAddress String?
+  requestType     String?
+  
+  // Relationships
+  user    User    @relation(fields: [userId], references: [slackId])
+  channel Channel @relation(fields: [channelId], references: [slackId])
+  
+  @@index([userId, channelId, timestamp])
+  @@index([propertyAddress])
+}
+
+// User feedback on responses
+model Feedback {
+  id              String   @id @default(cuid())
+  userId          String
+  channelId       String
+  interactionId   String?
+  originalRequest String
+  feedback        String   // 'positive' or 'negative'
+  reason          String?
+  timestamp       DateTime @default(now())
+  
+  // Business context
+  responseQuality Int?     // 1-5 rating
+  category        String?  // 'accuracy', 'speed', 'helpfulness', etc.
+  
+  // Relationships
+  user        User        @relation(fields: [userId], references: [slackId])
+  channel     Channel     @relation(fields: [channelId], references: [slackId])
+  interaction Interaction? @relation(fields: [interactionId], references: [id])
+  
+  @@index([userId, timestamp])
+  @@index([feedback, timestamp])
+  @@index([category])
+}
+
+// Business metrics and analytics
+model BusinessMetrics {
+  id          String   @id @default(cuid())
+  date        DateTime @unique // Date for the metrics
+  totalInteractions Int @default(0)
+  successfulInteractions Int @default(0)
+  totalUsers Int @default(0)
+  activeUsers Int @default(0)
+  averageResponseTime Float?
+  totalTokens Int @default(0)
+  totalCost Float @default(0) // OpenAI API costs
+  
+  // Business-specific metrics
+  propertyAnalysisCount Int @default(0)
+  compingRequests Int @default(0)
+  userSatisfactionScore Float? // Average feedback score
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([date])
+}
+
+// Property addresses for analysis tracking
+model PropertyAddress {
+  id          String   @id @default(cuid())
+  address     String   @unique
+  city        String?
+  state       String?
+  zipCode     String?
+  country     String?  @default("USA")
+  
+  // Analysis history
+  analysisCount Int @default(0)
+  lastAnalyzed DateTime?
+  averageRating Float?
+  
+  // Business context
+  marketArea   String?
+  propertyType String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([address])
+  @@index([city, state])
+  @@index([marketArea])
+}

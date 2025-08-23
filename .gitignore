@@ -154,8 +154,10 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Prisma
-prisma/migrations/
+# MongoDB
+*.db
+*.sqlite
+*.sqlite3
 .env
 
 # Build outputs

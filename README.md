@@ -62,13 +62,13 @@ The AI Acquisition Agent is a sophisticated, lender-grade residential valuation 
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Slack Bot     │    │  OpenAI API     │    │  PostgreSQL     │
+│   Slack Bot     │    │  OpenAI API     │    │  MongoDB        │
 │   (@bolt)       │◄──►│   (GPT-4)       │◄──►│   Database      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  TypeScript     │    │  Prisma ORM     │    │  Learning       │
+│  TypeScript     │    │  Mongoose ODM   │    │  Learning       │
 │  Backend        │    │   Client        │    │   System        │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
@@ -270,7 +270,7 @@ interface AnalysisResponse {
 
 ## 🗄️ Database Setup
 
-The system uses PostgreSQL for professional-grade data storage. See [DATABASE_SETUP.md](DATABASE_SETUP.md) for detailed setup instructions.
+The system uses MongoDB for flexible, scalable data storage. See [DATABASE_SETUP.md](DATABASE_SETUP.md) for detailed setup instructions.
 
 ### Quick Database Setup
 
@@ -328,11 +328,11 @@ npm test         # Run tests (when implemented)
 ai-acquisition-agent/
 ├── src/                    # TypeScript source code
 │   ├── index.ts           # Main application entry point
-│   ├── database.ts        # Database connection and utilities
-│   ├── mongo-service.ts   # MongoDB service (legacy)
+│   ├── mongo-service.ts   # MongoDB service layer
 │   └── model-config.ts    # AI model configuration
-├── prisma/                # Database schema (legacy)
-│   └── schema.prisma      # Prisma schema (legacy)
+├── src/                   # TypeScript source code
+│   ├── mongo-schema.ts    # MongoDB schema definitions
+│   └── mongo-service.ts   # MongoDB service layer
 ├── data/                  # Data storage (legacy file-based)
 ├── docs/                  # Documentation
 └── package.json           # Dependencies and scripts

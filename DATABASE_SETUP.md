@@ -1,231 +1,296 @@
 # 🗄️ Database Setup Guide
 
-Your learning system now uses **PostgreSQL** for professional-grade data storage and analytics!
+Your learning system uses **MongoDB** for flexible, scalable data storage and analytics!
 
-## 🚀 **Why PostgreSQL for Business?**
+## 🚀 **Why MongoDB for Business?**
 
 ### **Advantages Over File Storage:**
 - ✅ **Scalability**: Handle thousands of users and interactions
-- ✅ **Reliability**: ACID compliance, backup/recovery, crash protection
+- ✅ **Flexibility**: Schema-less design adapts to changing requirements
 - ✅ **Performance**: Fast queries with proper indexing
-- ✅ **Analytics**: Complex business intelligence queries
+- ✅ **Analytics**: Rich aggregation pipeline for business intelligence
 - ✅ **Integration**: Connect with BI tools, dashboards, and business systems
 - ✅ **Security**: User authentication, role-based access, encryption
 - ✅ **Backup**: Automated backups, point-in-time recovery
 
 ## 🛠️ **Setup Options**
 
-### **Option 1: Local PostgreSQL (Development)**
+### **Option 1: Local MongoDB (Development)**
 ```bash
-# Install PostgreSQL on macOS
-brew install postgresql
-brew services start postgresql
+# Install MongoDB Community on macOS
+brew install mongodb-community
+brew services start mongodb-community
 
-# Create database
-createdb acquisitions_agent
+# Create database (automatically created on first use)
+# MongoDB will create the database when you first insert data
 ```
 
-### **Option 2: Cloud PostgreSQL (Production - Recommended)**
+### **Option 2: Cloud MongoDB (Production - Recommended)**
 
-#### **A. Supabase (Free Tier Available)**
-1. Go to [supabase.com](https://supabase.com)
-2. Create account and new project
-3. Get connection string from Settings > Database
-4. **Free tier**: 500MB database, 2GB bandwidth/month
+#### **A. MongoDB Atlas (Free Tier Available)**
+1. Go to [mongodb.com/atlas](https://mongodb.com/atlas)
+2. Create account and new cluster
+3. Get connection string from Connect button
+4. **Free tier**: 512MB database, shared cluster
 
-#### **B. Neon (Free Tier Available)**
-1. Go to [neon.tech](https://neon.tech)
-2. Create account and new project
-3. Get connection string from dashboard
-4. **Free tier**: 3GB database, unlimited bandwidth
-
-#### **C. Railway (Paid but Affordable)**
+#### **B. Railway (Paid but Affordable)**
 1. Go to [railway.app](https://railway.app)
 2. Create account and new project
-3. Add PostgreSQL service
+3. Add MongoDB service
 4. **Pricing**: $5/month for 1GB database
 
-#### **D. AWS RDS (Enterprise)**
-1. AWS Console > RDS > Create Database
-2. Choose PostgreSQL
-3. **Pricing**: ~$15/month for db.t3.micro
+#### **C. AWS DocumentDB (Enterprise)**
+1. AWS Console > DocumentDB > Create Cluster
+2. Choose MongoDB-compatible version
+3. **Pricing**: ~$15/month for db.t3.medium
 
 ## 📋 **Setup Steps**
 
 ### **Step 1: Install Dependencies**
 ```bash
-npm install @prisma/client prisma
+npm install mongodb mongoose
 ```
 
 ### **Step 2: Set Environment Variables**
 Add to your `.env` file:
 ```bash
 # Database connection
-DATABASE_URL="postgresql://username:password@localhost:5432/acquisitions_agent"
+MONGODB_URI="mongodb://localhost:27017/acquisitions_agent"
 
-# For Supabase example:
-# DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres"
+# For MongoDB Atlas example:
+# MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/acquisitions_agent?retryWrites=true&w=majority"
 
-# For Neon example:
-# DATABASE_URL="postgresql://[USER]:[PASSWORD]@[HOST]/[DB_NAME]?sslmode=require"
+# For Railway example:
+# MONGODB_URI="mongodb://username:password@host:port/database"
 ```
 
 ### **Step 3: Initialize Database**
 ```bash
-# Generate Prisma client
-npx prisma generate
+# Start local MongoDB service
+brew services start mongodb-community
 
-# Create database tables
-npx prisma db push
-
-# (Optional) View database in browser
-npx prisma studio
+# Or connect to cloud MongoDB
+# The database and collections will be created automatically on first use
 ```
 
 ### **Step 4: Verify Setup**
 ```bash
-# Check database connection
-npx prisma db pull
+# Check MongoDB connection
+npm run dev
 
-# View database schema
-npx prisma format
+# The bot will automatically connect to MongoDB on startup
+# Check console logs for connection status
 ```
 
-## 🗂️ **Database Schema Overview**
+## 🗂️ **Database Collections Overview**
 
-### **Core Tables:**
-- **`User`**: Slack users with engagement metrics
-- **`Channel`**: Slack channels and metadata
-- **`Interaction`**: Every bot interaction with business context
-- **`Conversation`**: Chat history for context
-- **`Feedback`**: User ratings and feedback
-- **`BusinessMetrics`**: Daily aggregated business KPIs
-- **`PropertyAddress`**: Property analysis tracking
+### **Core Collections:**
+- **`users`**: Slack users with engagement metrics
+- **`channels`**: Slack channels and metadata
+- **`interactions`**: Every bot interaction with business context
+- **`conversations`**: Chat history for context
+- **`feedback`**: User ratings and improvement data
 
-### **Key Business Metrics Tracked:**
-- 📊 **User Engagement**: Active users, interaction counts
-- 🎯 **Success Rates**: Successful vs. failed requests
-- 💰 **Cost Tracking**: OpenAI API token usage and costs
-- 🏠 **Property Analysis**: Most analyzed addresses, request types
-- ⭐ **User Satisfaction**: Feedback scores and trends
-- 📈 **Performance**: Response times, error rates
+### **Collection Schemas**
 
-## 📊 **Business Intelligence Queries**
-
-### **Daily Dashboard:**
-```sql
--- Get today's business metrics
-SELECT * FROM "BusinessMetrics" 
-WHERE date = CURRENT_DATE;
-
--- Top performing users
-SELECT name, totalInteractions, successfulInteractions 
-FROM "User" 
-ORDER BY totalInteractions DESC 
-LIMIT 10;
-
--- Most analyzed properties
-SELECT address, analysisCount, lastAnalyzed 
-FROM "PropertyAddress" 
-ORDER BY analysisCount DESC 
-LIMIT 10;
+#### **Users Collection**
+```javascript
+{
+  _id: ObjectId,
+  slackId: String,
+  email: String,
+  name: String,
+  lastActive: Date,
+  totalInteractions: Number,
+  successfulInteractions: Number,
+  createdAt: Date,
+  updatedAt: Date
+}
 ```
 
-### **Weekly Reports:**
-```sql
--- Weekly success rate trends
-SELECT 
-  DATE_TRUNC('week', timestamp) as week,
-  COUNT(*) as total,
-  COUNT(CASE WHEN success THEN 1 END) as successful,
-  ROUND(COUNT(CASE WHEN success THEN 1 END)::decimal / COUNT(*) * 100, 2) as success_rate
-FROM "Interaction" 
-GROUP BY week 
-ORDER BY week DESC;
+#### **Channels Collection**
+```javascript
+{
+  _id: ObjectId,
+  slackId: String,
+  name: String,
+  isPrivate: Boolean,
+  totalInteractions: Number,
+  createdAt: Date,
+  updatedAt: Date
+}
 ```
 
-### **Cost Analysis:**
-```sql
--- Monthly OpenAI costs
-SELECT 
-  DATE_TRUNC('month', timestamp) as month,
-  SUM(tokens) as total_tokens,
-  ROUND(SUM(tokens) * 0.00001, 2) as estimated_cost_usd
-FROM "Interaction" 
-WHERE tokens IS NOT NULL 
-GROUP BY month 
-ORDER BY month DESC;
+#### **Interactions Collection**
+```javascript
+{
+  _id: ObjectId,
+  type: String, // 'command' or 'mention'
+  userId: String,
+  channelId: String,
+  request: String,
+  response: String,
+  success: Boolean,
+  model: String,
+  tokens: Number,
+  responseTime: Number,
+  errorCode: String,
+  errorMessage: String,
+  propertyAddress: String,
+  requestType: String,
+  userRole: String,
+  createdAt: Date
+}
 ```
 
-## 🔧 **Advanced Configuration**
-
-### **Database Optimization:**
-```sql
--- Create additional indexes for performance
-CREATE INDEX idx_interaction_timestamp ON "Interaction"(timestamp);
-CREATE INDEX idx_conversation_user_channel ON "Conversation"(userId, channelId);
-CREATE INDEX idx_feedback_category ON "Feedback"(category);
+#### **Conversations Collection**
+```javascript
+{
+  _id: ObjectId,
+  userId: String,
+  channelId: String,
+  messages: [
+    {
+      timestamp: Date,
+      userMessage: String,
+      botResponse: String,
+      context: String
+    }
+  ],
+  createdAt: Date,
+  updatedAt: Date
+}
 ```
 
-### **Data Retention Policies:**
-```sql
--- Archive old interactions (older than 1 year)
--- This can be automated with cron jobs or database triggers
-DELETE FROM "Interaction" 
-WHERE timestamp < NOW() - INTERVAL '1 year';
+#### **Feedback Collection**
+```javascript
+{
+  _id: ObjectId,
+  userId: String,
+  channelId: String,
+  originalRequest: String,
+  feedback: String, // 'positive' or 'negative'
+  reason: String,
+  createdAt: Date
+}
 ```
 
-## 📱 **Integration with Business Tools**
+## 🔧 **MongoDB Commands**
 
-### **BI Dashboards:**
-- **Tableau**: Connect directly to PostgreSQL
-- **Power BI**: Native PostgreSQL connector
-- **Grafana**: Real-time monitoring dashboards
-- **Metabase**: Open-source business intelligence
-
-### **Business Systems:**
-- **CRM Integration**: Export user engagement data
-- **Analytics Platforms**: Google Analytics, Mixpanel
-- **Reporting Tools**: Automated weekly/monthly reports
-- **Alert Systems**: Monitor success rates, error spikes
-
-## 🚨 **Production Considerations**
-
-### **Security:**
-- Use environment variables for database credentials
-- Enable SSL connections
-- Implement connection pooling
-- Regular security updates
-
-### **Performance:**
-- Monitor query performance
-- Optimize indexes based on usage patterns
-- Implement read replicas for heavy analytics
-- Use connection pooling (Prisma handles this)
-
-### **Backup & Recovery:**
-- Automated daily backups
-- Point-in-time recovery capability
-- Test restore procedures regularly
-- Monitor backup success rates
-
-## 💡 **Pro Tips**
-
-1. **Start with Supabase**: Free tier is perfect for testing
-2. **Use Prisma Studio**: Great for debugging and data exploration
-3. **Monitor Costs**: Track OpenAI API usage and costs
-4. **Regular Maintenance**: Clean up old data, optimize queries
-5. **Business Metrics**: Focus on KPIs that matter to your business
-
-## 🔄 **Migration from File Storage**
-
-If you have existing data in JSON files:
+### **Local MongoDB Management**
 ```bash
-# Export existing data
-node scripts/export-data.js
+# Start MongoDB service
+brew services start mongodb-community
 
-# Import to database
-node scripts/import-data.js
+# Stop MongoDB service
+brew services stop mongodb-community
+
+# Check MongoDB status
+brew services list | grep mongodb
+
+# Connect to MongoDB shell
+mongosh
+
+# List databases
+show dbs
+
+# Use acquisitions_agent database
+use acquisitions_agent
+
+# Show collections
+show collections
+
+# Query data
+db.users.find()
+db.interactions.find().sort({createdAt: -1}).limit(10)
 ```
 
-Your learning system is now enterprise-ready with professional-grade data storage! 🎯
+### **MongoDB Atlas Management**
+1. **Access**: Use MongoDB Atlas web interface
+2. **Collections**: Navigate to Browse Collections
+3. **Queries**: Use MongoDB Compass or Atlas Data Explorer
+4. **Indexes**: Create indexes for better performance
+5. **Backups**: Automated backups with point-in-time recovery
+
+## 📊 **Performance & Optimization**
+
+### **Indexing Strategy**
+```javascript
+// Create indexes for common queries
+db.users.createIndex({ "slackId": 1 })
+db.channels.createIndex({ "slackId": 1 })
+db.interactions.createIndex({ "userId": 1, "createdAt": -1 })
+db.interactions.createIndex({ "channelId": 1, "createdAt": -1 })
+db.conversations.createIndex({ "userId": 1, "channelId": 1 })
+```
+
+### **Connection Pooling**
+The application uses Mongoose connection pooling for optimal performance:
+- **Min connections**: 5
+- **Max connections**: 20
+- **Connection timeout**: 30 seconds
+- **Socket timeout**: 45 seconds
+
+## 🚨 **Troubleshooting**
+
+### **Common Issues**
+
+#### **Connection Refused**
+```bash
+# Check if MongoDB is running
+brew services list | grep mongodb
+
+# Start MongoDB if stopped
+brew services start mongodb-community
+```
+
+#### **Authentication Failed**
+- Check username/password in connection string
+- Ensure user has proper permissions
+- Verify network access (for Atlas)
+
+#### **Database Not Found**
+- MongoDB creates databases automatically
+- Check connection string for correct database name
+- Verify user has create database permissions
+
+### **Logs & Debugging**
+```bash
+# View MongoDB logs
+tail -f /usr/local/var/log/mongodb/mongo.log
+
+# Check application logs
+npm run dev
+# Look for MongoDB connection messages in console
+```
+
+## 🔒 **Security Best Practices**
+
+### **Local Development**
+- MongoDB runs without authentication by default
+- Suitable for development only
+- Never expose to internet
+
+### **Production (MongoDB Atlas)**
+- Use strong passwords
+- Enable IP whitelist
+- Use VPC peering if on AWS
+- Enable encryption at rest
+- Regular security audits
+
+## 📈 **Monitoring & Maintenance**
+
+### **Health Checks**
+- Monitor connection pool usage
+- Track query performance
+- Watch disk space usage
+- Monitor backup success
+
+### **Backup Strategy**
+- **Automated**: Daily backups with 7-day retention
+- **Manual**: Export collections as needed
+- **Recovery**: Point-in-time recovery available
+
+---
+
+**Next Steps**: After setting up MongoDB, see [LEARNING_SYSTEM.md](LEARNING_SYSTEM.md) for how the bot uses the database for learning and improvement.

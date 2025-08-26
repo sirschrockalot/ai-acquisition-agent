@@ -34,7 +34,6 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: '**/package-lock.json'
         
     - name: 📥 Install dependencies
       run: |
@@ -45,11 +44,8 @@ jobs:
         echo "📦 Package files:"
         ls -la package* || echo "No package files found"
         
-        # Try to install dependencies
-        npm ci || {
-          echo "⚠️ npm ci failed, trying npm install instead"
-          npm install
-        }
+        # Install dependencies
+        npm install
       
     - name: 🔍 TypeScript check
       run: npx tsc --noEmit

@@ -65,6 +65,10 @@ jobs:
         
         echo "✅ Found package.json in: $(pwd)"
         
+        # Set PWD environment variable to ensure npm uses the right directory
+        export PWD=$(pwd)
+        echo "🔧 Set PWD to: $PWD"
+        
     - name: 📥 Install dependencies
       run: |
         # Verify we're in the right directory
@@ -72,9 +76,23 @@ jobs:
         echo "📦 Package files:"
         ls -la package*
         
-        # Install dependencies
+        # Install dependencies with explicit working directory
         echo "📦 Installing dependencies..."
-        npm install
+        echo "🔧 Current working directory: $(pwd)"
+        echo "🔧 PWD environment variable: $PWD"
+        
+        # Try multiple approaches to ensure npm uses the right directory
+        npm install --prefix $(pwd) || {
+          echo "⚠️ --prefix approach failed, trying with explicit path..."
+          npm install --prefix "$(pwd)" || {
+            echo "⚠️ --prefix with quotes failed, trying direct install..."
+            npm install
+          }
+        }
+        
+        # Also try to verify the installation worked
+        echo "🔍 Checking if node_modules was created:"
+        ls -la node_modules || echo "No node_modules found"
       
     - name: 🔍 TypeScript check
       run: npx tsc --noEmit

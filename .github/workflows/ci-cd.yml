@@ -18,6 +18,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        path: ai-acquisition-agent
         
     - name: 🔍 Debug checkout
       run: |
@@ -28,12 +29,24 @@ jobs:
         git status
         echo "🔍 Git remote:"
         git remote -v
+        echo "🔍 Repository root:"
+        git rev-parse --show-toplevel
+        echo "🔍 Working tree root:"
+        git rev-parse --show-toplevel --absolute-git-dir
       
     - name: 📦 Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
+        
+    - name: 🔧 Set working directory
+      run: |
+        echo "🔧 Setting working directory to repository root"
+        cd ai-acquisition-agent
+        echo "🔍 Current directory: $(pwd)"
+        echo "🔍 Directory contents:"
+        ls -la
         
     - name: 📥 Install dependencies
       run: |
@@ -43,6 +56,31 @@ jobs:
         ls -la
         echo "📦 Package files:"
         ls -la package* || echo "No package files found"
+        
+        # Check if we're in a nested directory and navigate to the right place
+        if [ -f "package.json" ]; then
+          echo "✅ package.json found in current directory"
+        elif [ -f "../package.json" ]; then
+          echo "⚠️ package.json found in parent directory, navigating up"
+          cd ..
+          echo "🔍 New directory: $(pwd)"
+          echo "🔍 New contents:"
+          ls -la
+        elif [ -f "ai-acquisition-agent/package.json" ]; then
+          echo "⚠️ package.json found in subdirectory, navigating down"
+          cd ai-acquisition-agent
+          echo "🔍 New directory: $(pwd)"
+          echo "🔍 New contents:"
+          ls -la
+        else
+          echo "❌ package.json not found anywhere!"
+          find . -name "package.json" -type f
+          exit 1
+        fi
+        
+        # Verify we have the right files
+        echo "📦 Final package files check:"
+        ls -la package*
         
         # Install dependencies
         npm install

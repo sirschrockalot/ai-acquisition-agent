@@ -14,7 +14,7 @@ export interface PhotoUploadResult {
   failed_photos: number;
   photo_analysis: PhotoAnalysisResult[];
   summary: PhotoAnalysisSummary;
-  advanced_analysis?: AdvancedPhotoAnalysis;
+  advanced_analysis: AdvancedPhotoAnalysis | undefined;
   upload_timestamp: Date;
   processing_time_ms: number;
 }

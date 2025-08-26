@@ -13,6 +13,72 @@ const mongoService = new MongoService();
 // Conversation manager for persistent conversations
 const { conversationManager, propertyConversationProcessor } = require('./conversation-manager');
 
+// Photo upload handler for zip files
+const { photoUploadHandler } = require('./photo-upload-handler');
+
+// Format photo analysis results for Slack
+function formatPhotoAnalysisResults(uploadResult: any): string {
+  const { summary, photo_analysis, total_photos, processed_photos, processing_time_ms } = uploadResult;
+  
+  let formatted = `📸 *PHOTO ANALYSIS COMPLETE*\n\n`;
+  formatted += `📊 *Processing Summary:*\n`;
+  formatted += `• Total Photos: ${total_photos}\n`;
+  formatted += `• Successfully Processed: ${processed_photos}\n`;
+  formatted += `• Processing Time: ${(processing_time_ms / 1000).toFixed(1)}s\n\n`;
+  
+  // Overall property assessment
+  formatted += `🏠 *Overall Property Assessment:*\n`;
+  formatted += `• Condition: ${summary.overall_condition.toUpperCase()}\n`;
+  formatted += `• Average Condition Score: ${(summary.average_condition_score * 100).toFixed(1)}%\n`;
+  formatted += `• Total Repair Cost: $${summary.total_repair_cost.toLocaleString()}\n`;
+  formatted += `• Construction Quality: ${summary.property_insights.construction_quality}\n`;
+  formatted += `• Maintenance Level: ${summary.property_insights.maintenance_level}\n`;
+  formatted += `• Renovation Potential: ${summary.property_insights.renovation_potential}\n\n`;
+  
+  // Room breakdown
+  if (Object.keys(summary.room_breakdown).length > 0) {
+    formatted += `🏘️ *Room-by-Room Analysis:*\n`;
+    Object.entries(summary.room_breakdown).forEach(([roomType, data]: [string, any]) => {
+      formatted += `• ${roomType.replace('_', ' ').toUpperCase()}: ${data.count} photos, ${(data.average_condition * 100).toFixed(1)}% condition, $${data.total_repair_cost.toLocaleString()} repairs\n`;
+    });
+    formatted += `\n`;
+  }
+  
+  // Critical issues
+  if (summary.critical_issues.length > 0) {
+    formatted += `⚠️ *Critical Issues Detected:*\n`;
+    summary.critical_issues.forEach((issue: string) => {
+      formatted += `• ${issue}\n`;
+    });
+    formatted += `\n`;
+  }
+  
+  // Major repairs
+  if (summary.major_repairs.length > 0) {
+    formatted += `🔧 *Major Repairs Required:*\n`;
+    summary.major_repairs.forEach((repair: any) => {
+      formatted += `• ${repair.item}: $${repair.estimated_cost.toLocaleString()} (${repair.severity})\n`;
+    });
+    formatted += `\n`;
+  }
+  
+  // Photo details (top 5)
+  if (photo_analysis.length > 0) {
+    formatted += `📷 *Photo Analysis Details (Top 5):*\n`;
+    photo_analysis.slice(0, 5).forEach((photo: any, index: number) => {
+      formatted += `${index + 1}. ${photo.original_filename}\n`;
+      formatted += `   • Room: ${photo.analysis.room_type}\n`;
+      formatted += `   • Condition: ${(photo.analysis.condition_score * 100).toFixed(1)}%\n`;
+      formatted += `   • Assessment: ${photo.analysis.overall_assessment.toUpperCase()}\n`;
+      if (photo.analysis.repair_items.length > 0) {
+        formatted += `   • Repairs: $${photo.analysis.repair_items.reduce((sum: number, item: any) => sum + item.estimated_cost, 0).toLocaleString()}\n`;
+      }
+    });
+  }
+  
+  return formatted;
+}
+
 // Format response for better Slack readability
 function formatSlackResponse(response: string): string {
   try {
@@ -541,6 +607,84 @@ async function main() {
       response_type: 'ephemeral',
       text: `✅ Model changed to \`${requestedModel}\`\n\n**${modelInfo?.name}**: ${modelInfo?.description}\n\nNote: This change only affects the current session. For permanent changes, update your \`.env\` file.`
     });
+  });
+
+  // Photo upload command
+  app.command('/photos', async ({ command, ack, respond }: any) => {
+    await ack();
+    
+    const text = command.text?.trim() || '';
+    if (!text) {
+      await respond({
+        response_type: 'ephemeral',
+        text: 'Please provide a property address and upload a zip file with photos. Example: `/photos 123 Main St, Anytown, USA` (then upload zip file in thread)'
+      });
+      return;
+    }
+    
+    await respond({
+      response_type: 'ephemeral',
+      text: `📸 Photo Analysis Setup\n\nProperty: ${text}\n\nPlease upload a zip file containing all property photos in this thread. I'll analyze them for:\n• Room-by-room condition assessment\n• Damage detection and repair estimates\n• Overall property insights\n• Construction quality analysis`
+    });
+  });
+
+  // File upload handler for photo analysis
+  app.event('file_shared', async ({ event, client }: any) => {
+    try {
+      // Check if this is a zip file
+      if (!event.file?.filetype || event.file.filetype !== 'zip') {
+        return; // Only process zip files
+      }
+      
+      console.log(`📦 Zip file uploaded: ${event.file.name}`);
+      
+      // Get file info
+      const fileInfo = await client.files.info({
+        file: event.file.id
+      });
+      
+      // Download the file
+      const filePath = `/tmp/${event.file.id}.zip`;
+      const fileStream = await client.files.getReadStream({
+        file: event.file.id
+      });
+      
+      const writeStream = require('fs').createWriteStream(filePath);
+      fileStream.pipe(writeStream);
+      
+      await new Promise((resolve, reject) => {
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+      });
+      
+      // Process the zip file
+      const uploadResult = await photoUploadHandler.processZipUpload(
+        filePath,
+        'Property from file upload', // You could extract this from thread context
+        'single_family'
+      );
+      
+      // Format the analysis results
+      const analysisMessage = formatPhotoAnalysisResults(uploadResult);
+      
+      // Send the analysis
+      await client.chat.postMessage({
+        channel: event.channel,
+        thread_ts: event.thread_ts || event.ts,
+        text: analysisMessage
+      });
+      
+      // Clean up the downloaded file
+      require('fs').unlinkSync(filePath);
+      
+    } catch (error) {
+      console.error('Error processing file upload:', error);
+      await client.chat.postMessage({
+        channel: event.channel,
+        thread_ts: event.thread_ts || event.ts,
+        text: '❌ Sorry, I encountered an error processing the photo upload. Please try again.'
+      });
+    }
   });
 
   // Feedback command

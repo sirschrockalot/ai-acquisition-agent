@@ -112,6 +112,51 @@ export interface LocationAnalysis {
   final_location_score: number;
 }
 
+export interface DealPerformance {
+  deal_id: string;
+  subject_address: string;
+  acquisition_price: number;
+  estimated_arv: number;
+  estimated_repair_costs: number;
+  estimated_margin: number;
+  margin_confidence: number;
+  comp_quality_score: number;
+  market_condition: string;
+  deal_status: 'analyzing' | 'under_contract' | 'closed' | 'flipped';
+  created_date: string;
+  closed_date?: string;
+  actual_arv?: number;
+  actual_repair_costs?: number;
+  actual_margin?: number;
+  roi_percentage?: number;
+}
+
+export interface MarketTrend {
+  zip_code: string;
+  trend_period: number; // days
+  price_trend: 'increasing' | 'decreasing' | 'stable';
+  trend_strength: number; // 0-1
+  trend_confidence: number; // 0-1
+  volatility_index: number; // 0-1
+  momentum_score: number; // -1 to 1
+  seasonal_factor: number;
+  market_cycle_phase: 'expansion' | 'peak' | 'contraction' | 'trough' | 'stable';
+  last_updated: string;
+}
+
+export interface PerformanceMetrics {
+  total_deals: number;
+  average_margin: number;
+  margin_accuracy: number;
+  comp_quality_trend: number;
+  arv_accuracy_trend: number;
+  repair_cost_accuracy: number;
+  deal_velocity: number; // days from analysis to close
+  market_trend_accuracy: number;
+  roi_trend: number;
+  risk_adjusted_return: number;
+}
+
 // Condition ranking for comparison
 const CONDITION_RANKS = {
   'poor': 1,
@@ -265,7 +310,7 @@ export function calculateLocationScore(subject: Property, comp: Property): numbe
   if (subject.market_condition && comp.market_condition) {
     if (subject.market_condition === comp.market_condition) {
       locationScore += 0.05; // Bonus for same market condition
-    } else if (
+  } else if (
       (subject.market_condition === 'hot' && comp.market_condition === 'stable') ||
       (subject.market_condition === 'stable' && comp.market_condition === 'hot')
     ) {
@@ -277,6 +322,286 @@ export function calculateLocationScore(subject: Property, comp: Property): numbe
   
   // Ensure score stays within bounds
   return Math.max(0, Math.min(1, locationScore));
+}
+
+/**
+ * Analyze market trends for a specific location (Phase 4)
+ */
+export function analyzeMarketTrends(
+  zipCode: string, 
+  historicalData: Property[], 
+  trendPeriod: number = 90
+): MarketTrend {
+  if (historicalData.length < 3) {
+    // Not enough data for trend analysis
+    return {
+      zip_code: zipCode,
+      trend_period: trendPeriod,
+      price_trend: 'stable',
+      trend_strength: 0.5,
+      trend_confidence: 0.3,
+      volatility_index: 0.5,
+      momentum_score: 0,
+      seasonal_factor: 1.0,
+      market_cycle_phase: 'stable',
+      last_updated: new Date().toISOString()
+    };
+  }
+  
+  // Sort by sale date
+  const sortedData = [...historicalData].sort((a, b) => 
+    new Date(a.sale_date || '').getTime() - new Date(b.sale_date || '').getTime()
+  );
+  
+  // Calculate price trends
+  const recentPrices = sortedData.slice(-Math.min(5, sortedData.length)).map(p => p.sale_price || 0);
+  const olderPrices = sortedData.slice(0, Math.min(5, sortedData.length)).map(p => p.sale_price || 0);
+  
+  const recentAvg = recentPrices.reduce((sum, price) => sum + price, 0) / recentPrices.length;
+  const olderAvg = olderPrices.reduce((sum, price) => sum + price, 0) / olderPrices.length;
+  
+  // Determine trend direction and strength
+  let priceTrend: 'increasing' | 'decreasing' | 'stable';
+  let trendStrength = 0;
+  let momentumScore = 0;
+  
+  if (recentAvg > olderAvg * 1.05) {
+    priceTrend = 'increasing';
+    trendStrength = Math.min(1, (recentAvg - olderAvg) / olderAvg);
+    momentumScore = Math.min(1, trendStrength * 2);
+  } else if (recentAvg < olderAvg * 0.95) {
+    priceTrend = 'decreasing';
+    trendStrength = Math.min(1, (olderAvg - recentAvg) / olderAvg);
+    momentumScore = -Math.min(1, trendStrength * 2);
+  } else {
+    priceTrend = 'stable';
+    trendStrength = 0.1;
+    momentumScore = 0;
+  }
+  
+  // Calculate volatility
+  const allPrices = sortedData.map(p => p.sale_price || 0);
+  const meanPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
+  const variance = allPrices.reduce((sum, price) => sum + Math.pow(price - meanPrice, 2), 0) / allPrices.length;
+  const volatilityIndex = Math.min(1, Math.sqrt(variance) / meanPrice);
+  
+  // Determine market cycle phase
+  let marketCyclePhase: 'expansion' | 'peak' | 'contraction' | 'trough';
+  if (priceTrend === 'increasing' && momentumScore > 0.7) {
+    marketCyclePhase = 'expansion';
+  } else if (priceTrend === 'increasing' && momentumScore < 0.3) {
+    marketCyclePhase = 'peak';
+  } else if (priceTrend === 'decreasing' && momentumScore < -0.3) {
+    marketCyclePhase = 'contraction';
+  } else {
+    marketCyclePhase = 'trough';
+  }
+  
+  // Calculate trend confidence based on data quality
+  const trendConfidence = Math.min(1, historicalData.length / 10) * (1 - volatilityIndex * 0.5);
+  
+  return {
+    zip_code: zipCode,
+    trend_period: trendPeriod,
+    price_trend: priceTrend,
+    trend_strength: trendStrength,
+    trend_confidence: trendConfidence,
+    volatility_index: volatilityIndex,
+    momentum_score: momentumScore,
+    seasonal_factor: 1.0, // Would integrate with seasonal analysis
+    market_cycle_phase: marketCyclePhase,
+    last_updated: new Date().toISOString()
+  };
+}
+
+/**
+ * Track deal performance and calculate ROI (Phase 4)
+ */
+export function trackDealPerformance(
+  dealId: string,
+  subject: Property,
+  acquisitionPrice: number,
+  estimatedARV: number,
+  estimatedRepairCosts: number,
+  comps: Property[]
+): DealPerformance {
+  const estimatedMargin = (estimatedARV - acquisitionPrice - estimatedRepairCosts) / acquisitionPrice;
+  const compQualityScore = getCompQualityMetrics(comps, subject).averageScore;
+  
+  // Calculate margin confidence based on comp quality and market conditions
+  let marginConfidence = 0.7; // Base confidence
+  
+  if (compQualityScore > 0.8) marginConfidence += 0.2;
+  if (comps.length >= 5) marginConfidence += 0.1;
+  
+  // Market condition impact on confidence
+  if (subject.market_condition === 'stable') marginConfidence += 0.1;
+  else if (subject.market_condition === 'hot') marginConfidence -= 0.1;
+  
+  marginConfidence = Math.min(1, Math.max(0.3, marginConfidence));
+  
+  return {
+    deal_id: dealId,
+    subject_address: subject.address,
+    acquisition_price: acquisitionPrice,
+    estimated_arv: estimatedARV,
+    estimated_repair_costs: estimatedRepairCosts,
+    estimated_margin: estimatedMargin,
+    margin_confidence: marginConfidence,
+    comp_quality_score: compQualityScore,
+    market_condition: subject.market_condition || 'unknown',
+    deal_status: 'analyzing',
+    created_date: new Date().toISOString()
+  };
+}
+
+/**
+ * Calculate comprehensive performance metrics (Phase 4)
+ */
+export function calculatePerformanceMetrics(
+  deals: DealPerformance[],
+  marketTrends: MarketTrend[]
+): PerformanceMetrics {
+  if (deals.length === 0) {
+    return {
+      total_deals: 0,
+      average_margin: 0,
+      margin_accuracy: 0,
+      comp_quality_trend: 0,
+      arv_accuracy_trend: 0,
+      repair_cost_accuracy: 0,
+      deal_velocity: 0,
+      market_trend_accuracy: 0,
+      roi_trend: 0,
+      risk_adjusted_return: 0
+    };
+  }
+  
+  // Basic metrics
+  const totalDeals = deals.length;
+  const averageMargin = deals.reduce((sum, deal) => sum + deal.estimated_margin, 0) / totalDeals;
+  
+  // Calculate accuracy metrics for closed deals
+  const closedDeals = deals.filter(deal => deal.deal_status === 'closed' || deal.deal_status === 'flipped');
+  let marginAccuracy = 0;
+  let arvAccuracy = 0;
+  let repairCostAccuracy = 0;
+  
+  if (closedDeals.length > 0) {
+    marginAccuracy = closedDeals.reduce((sum, deal) => {
+      if (deal.actual_margin !== undefined) {
+        return sum + (1 - Math.abs(deal.estimated_margin - deal.actual_margin) / deal.estimated_margin);
+      }
+      return sum;
+    }, 0) / closedDeals.length;
+    
+    arvAccuracy = closedDeals.reduce((sum, deal) => {
+      if (deal.actual_arv !== undefined) {
+        return sum + (1 - Math.abs(deal.estimated_arv - deal.actual_arv) / deal.estimated_arv);
+      }
+      return sum;
+    }, 0) / closedDeals.length;
+    
+    repairCostAccuracy = closedDeals.reduce((sum, deal) => {
+      if (deal.actual_repair_costs !== undefined) {
+        return sum + (1 - Math.abs(deal.estimated_repair_costs - deal.actual_repair_costs) / deal.estimated_repair_costs);
+      }
+      return sum;
+    }, 0) / closedDeals.length;
+  }
+  
+  // Calculate trends
+  const recentDeals = deals.slice(-Math.min(10, deals.length));
+  const olderDeals = deals.slice(0, Math.min(10, deals.length));
+  
+  const recentAvgMargin = recentDeals.reduce((sum, deal) => sum + deal.estimated_margin, 0) / recentDeals.length;
+  const olderAvgMargin = olderDeals.reduce((sum, deal) => sum + deal.estimated_margin, 0) / olderDeals.length;
+  const marginTrend = recentAvgMargin - olderAvgMargin;
+  
+  const recentAvgCompQuality = recentDeals.reduce((sum, deal) => sum + deal.comp_quality_score, 0) / recentDeals.length;
+  const olderAvgCompQuality = olderDeals.reduce((sum, deal) => sum + deal.comp_quality_score, 0) / olderDeals.length;
+  const compQualityTrend = recentAvgCompQuality - olderAvgCompQuality;
+  
+  // Calculate deal velocity (average days from creation to close)
+  let dealVelocity = 0;
+  if (closedDeals.length > 0) {
+    const totalDays = closedDeals.reduce((sum, deal) => {
+      if (deal.closed_date) {
+        const created = new Date(deal.created_date);
+        const closed = new Date(deal.closed_date);
+        return sum + (closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+      }
+      return sum;
+    }, 0);
+    dealVelocity = totalDays / closedDeals.length;
+  }
+  
+  // Calculate ROI trend
+  let roiTrend = 0;
+  if (closedDeals.length > 0) {
+    const recentROI = recentDeals.filter(d => d.roi_percentage !== undefined)
+      .reduce((sum, deal) => sum + (deal.roi_percentage || 0), 0) / recentDeals.length;
+    const olderROI = olderDeals.filter(d => d.roi_percentage !== undefined)
+      .reduce((sum, deal) => sum + (deal.roi_percentage || 0), 0) / olderDeals.length;
+    roiTrend = recentROI - olderROI;
+  }
+  
+  // Calculate risk-adjusted return (simplified)
+  const riskAdjustedReturn = averageMargin * (1 - 0.2); // Placeholder volatility
+  
+  return {
+    total_deals: totalDeals,
+    average_margin: averageMargin,
+    margin_accuracy: marginAccuracy,
+    comp_quality_trend: compQualityTrend,
+    arv_accuracy_trend: arvAccuracy,
+    repair_cost_accuracy: repairCostAccuracy,
+    deal_velocity: dealVelocity,
+    market_trend_accuracy: 0.8, // Placeholder - would integrate with market trend analysis
+    roi_trend: roiTrend,
+    risk_adjusted_return: riskAdjustedReturn
+  };
+}
+
+/**
+ * Generate margin optimization recommendations (Phase 4)
+ */
+export function generateMarginRecommendations(
+  deal: DealPerformance,
+  marketTrend: MarketTrend,
+  comps: Property[]
+): string[] {
+  const recommendations: string[] = [];
+  
+  // Margin-based recommendations
+  if (deal.estimated_margin < 0.25) {
+    recommendations.push("⚠️ Estimated margin below target (25%). Consider renegotiating acquisition price.");
+  }
+  
+  if (deal.estimated_margin < 0.35) {
+    recommendations.push("📈 Margin below preferred level (35%). Review comp selection and repair estimates.");
+  }
+  
+  // Comp quality recommendations
+  if (deal.comp_quality_score < 0.7) {
+    recommendations.push("🔍 Comp quality below threshold. Seek additional comparable properties.");
+  }
+  
+  // Market condition recommendations
+  if (marketTrend.price_trend === 'decreasing') {
+    recommendations.push("📉 Market trending down. Consider more conservative ARV estimates.");
+  }
+  
+  if (marketTrend.volatility_index > 0.3) {
+    recommendations.push("📊 High market volatility. Increase safety margins in ARV calculations.");
+  }
+  
+  // Confidence-based recommendations
+  if (deal.margin_confidence < 0.6) {
+    recommendations.push("❓ Low confidence in margin estimate. Gather more market data.");
+  }
+  
+  return recommendations;
 }
 
 /**

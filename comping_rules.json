@@ -171,7 +171,11 @@
       "market_trends": {
         "include_90_day_trends": true,
         "trend_adjustment_factor": 0.02,
-        "seasonal_adjustments": true
+        "seasonal_adjustments": true,
+        "trend_confidence_threshold": 0.75,
+        "trend_reversal_detection": true,
+        "momentum_analysis": true,
+        "volatility_tracking": true
       },
       "zip_code_analysis": {
         "enabled": true,
@@ -201,6 +205,37 @@
         "cold_market_adjustment": 1.02,
         "stable_market_adjustment": 1.00,
         "market_condition_detection": true
+      }
+    },
+    "advanced_analytics": {
+      "margin_tracking": {
+        "enabled": true,
+        "target_minimum_margin": 0.25,
+        "preferred_margin": 0.35,
+        "margin_confidence_interval": 0.90,
+        "track_historical_performance": true,
+        "margin_optimization_alerts": true
+      },
+      "performance_metrics": {
+        "comp_quality_tracking": true,
+        "arv_accuracy_tracking": true,
+        "repair_cost_accuracy": true,
+        "deal_velocity_tracking": true,
+        "market_trend_analysis": true
+      },
+      "market_intelligence": {
+        "real_time_market_data": true,
+        "trend_analysis_window": 90,
+        "seasonal_pattern_recognition": true,
+        "market_cycle_detection": true,
+        "competitor_analysis": true
+      },
+      "reporting_dashboards": {
+        "margin_performance": true,
+        "comp_quality_metrics": true,
+        "market_trends": true,
+        "deal_pipeline": true,
+        "roi_analysis": true
       }
     }
   },

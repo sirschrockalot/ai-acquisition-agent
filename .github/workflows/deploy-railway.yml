@@ -28,15 +28,20 @@ jobs:
     - name: 🏗️ Build application
       run: npm run build
       
-    - name: 🔐 Setup Railway
-      uses: railway/cli@v1.0.0
-      with:
-        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+    - name: 🔐 Setup Railway CLI
+      run: |
+        # Install Railway CLI
+        npm install -g @railway/cli
         
     - name: 🚂 Deploy to Railway
       run: |
-        railway login --token ${{ secrets.RAILWAY_TOKEN }}
-        railway link --project ${{ env.RAILWAY_PROJECT_ID }}
+        # Login to Railway
+        echo ${{ secrets.RAILWAY_TOKEN }} | railway login
+        
+        # Link to project
+        railway link --project ${{ secrets.RAILWAY_PROJECT_ID }}
+        
+        # Deploy the service
         railway up --service ai-acquisition-agent
         
     - name: 🔧 Configure environment variables

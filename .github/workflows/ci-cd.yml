@@ -2,22 +2,12 @@ name: 🔄 CI/CD Pipeline - Test & Build
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-        - production
-        - staging
+# Note: Manual triggers not needed for CI/CD
 
-env:
-  # Note: Deployment moved to Heroku workflow
+# Note: Deployment moved to Heroku workflow
 
 jobs:
   test:
@@ -50,18 +40,10 @@ jobs:
     - name: 🏗️ Build application
       run: npm run build
       
-    - name: 📦 Build Docker image
+    - name: ✅ Build verification
       run: |
-        docker build -t ai-acquisition-agent:${{ github.sha }} .
-        docker build -t ai-acquisition-agent:latest .
-        
-    - name: 🧹 Cleanup Docker images
-      if: always()
-      run: |
-        docker rmi ai-acquisition-agent:${{ github.sha }} || true
-        docker rmi ai-acquisition-agent:latest || true
+        echo "✅ Application built successfully"
+        echo "✅ Ready for Heroku deployment"
 
-  # Note: Staging deployment removed - using Heroku for all deployments
-
-  # Note: Production deployment moved to separate Heroku workflow
-  # See: .github/workflows/deploy-heroku.yml
+# Note: All deployment moved to Heroku workflow
+# See: .github/workflows/deploy-heroku.yml

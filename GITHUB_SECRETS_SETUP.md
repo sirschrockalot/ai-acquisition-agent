@@ -61,11 +61,7 @@ Purpose: Socket mode and app-level authentication
 
 ### **Step 2: Add Each Secret**
 
-#### **DigitalOcean API Token**
-```
-Secret name: DIGITALOCEAN_ACCESS_TOKEN
-Secret value: dop_v1_your_digitalocean_token_here
-```
+# Note: DigitalOcean deployment removed - using Heroku only
 
 #### **OpenAI API Key**
 ```
@@ -126,10 +122,7 @@ HEROKU_EMAIL                •••••••••••••••••�
 
 ### **Token Permissions**
 
-#### **DigitalOcean API Token**
-- **Read** access to droplets
-- **Write** access to droplets (for deployment)
-- **Read** access to SSH keys
+# Note: DigitalOcean deployment removed - using Heroku only
 
 #### **Slack App Scopes**
 - `chat:write` - Send messages
@@ -155,18 +148,7 @@ SLACK_BOT_TOKEN_STAGING
 ### **In GitHub Actions Workflows**
 Your secrets are automatically injected into the deployment process:
 
-#### **DigitalOcean Deployment**
-```yaml
-# The workflow creates a .env file on the droplet:
-cat > .env << 'ENVEOF'
-NODE_ENV=production
-PORT=3000
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
-SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}
-SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}
-ENVEOF
-```
+# Note: DigitalOcean deployment removed - using Heroku only
 
 #### **Heroku Deployment**
 ```yaml
@@ -180,8 +162,8 @@ heroku config:set SLACK_APP_TOKEN="${{ secrets.SLACK_APP_TOKEN }}"
 ### **Secret Injection Process**
 1. **GitHub Actions** runs your workflow
 2. **Secrets are injected** into the deployment script
-3. **Script creates .env file** on the DigitalOcean droplet
-4. **Docker containers** use the .env file
+3. **Script sets environment variables** on Heroku
+4. **Docker containers** use the Heroku environment
 5. **Your AI agent** runs with production credentials
 
 ## 🔍 Troubleshooting
@@ -199,10 +181,10 @@ Error: Secret 'OPENAI_API_KEY' not found
 
 #### **2. "Permission denied" Error**
 ```
-Error: DigitalOcean API returned 403 Forbidden
+Error: Heroku API returned 403 Forbidden
 ```
 **Solution:**
-- Verify `DIGITALOCEAN_ACCESS_TOKEN` is correct
+- Verify `HEROKU_API_KEY` is correct
 - Check token has write permissions
 - Ensure token hasn't expired
 
@@ -262,18 +244,12 @@ curl -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
 ## 📊 Secret Status Dashboard
 
 ### **Required Secrets Checklist**
-- [ ] `DIGITALOCEAN_ACCESS_TOKEN` - DigitalOcean API access
 - [ ] `OPENAI_API_KEY` - OpenAI API authentication
 - [ ] `SLACK_BOT_TOKEN` - Slack bot authentication
 - [ ] `SLACK_SIGNING_SECRET` - Slack webhook verification
 - [ ] `SLACK_APP_TOKEN` - Slack app authentication
-
-### **Optional Secrets (for alternative deployments)**
-- [ ] `HEROKU_API_KEY` - Heroku API access (for Heroku deployment)
-- [ ] `HEROKU_EMAIL` - Heroku account email (for Heroku deployment)
-- [ ] `RAILWAY_TOKEN` - Railway CLI token (for Railway deployment)
-- [ ] `RAILWAY_PROJECT_ID` - Railway project ID (for Railway deployment)
-- [ ] `FLY_API_TOKEN` - Fly.io API token (for Fly.io deployment)
+- [ ] `HEROKU_API_KEY` - Heroku API access (for deployment)
+- [ ] `HEROKU_EMAIL` - Heroku account email (for deployment)
 
 ### **Optional Secrets**
 - [ ] `SLACK_WEBHOOK_URL` - Slack notifications

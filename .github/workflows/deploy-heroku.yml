@@ -16,13 +16,13 @@ jobs:
     - name: 🚀 Checkout code
       uses: actions/checkout@v4
       
-    - name: 🔐 Setup Heroku Container Registry
-      uses: akhileshns/heroku-deploy@v3.12.14
-      with:
-        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-        heroku_app_name: ${{ env.HEROKU_APP_NAME }}
-        heroku_email: ${{ secrets.HEROKU_EMAIL }}
-        appdir: "."
+    - name: 🔐 Setup Heroku CLI
+      run: |
+        # Install Heroku CLI
+        curl https://cli-assets.heroku.com/install.sh | sh
+        
+        # Add Heroku to PATH
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
         
     - name: 🐳 Build and Push Docker Container
       run: |

@@ -190,25 +190,34 @@ jobs:
           echo "❌ SLACK_APP_TOKEN not set or empty"
         fi
         
-    - name: 🗄️ Setup MongoDB (MongoDB Atlas)
+    - name: 🗄️ Setup MongoDB (Use Existing Atlas)
       run: |
-        # Add MongoDB Atlas addon (requires credit card)
-        heroku addons:create mongolab:sandbox --app ${{ env.HEROKU_APP_NAME }} || echo "MongoDB Atlas addon not available"
+        echo "🗄️ Setting up MongoDB connection to your existing Atlas cluster..."
         
-        # Get MongoDB connection string and set it
-        MONGODB_URI=$(heroku config:get MONGODB_URI --app ${{ env.HEROKU_APP_NAME }})
-        if [ -n "$MONGODB_URI" ]; then
-          echo "✅ MongoDB URI found: $MONGODB_URI"
+        # Set MongoDB URI from your existing Atlas cluster
+        if [ -n "${{ secrets.MONGODB_URI }}" ]; then
+          echo "✅ Using your existing MongoDB Atlas URI"
+          heroku config:set MONGODB_URI="${{ secrets.MONGODB_URI }}" --app ${{ env.HEROKU_APP_NAME }}
         else
-          echo "⚠️ MongoDB URI not found, setting default"
-          MONGODB_URI="mongodb://localhost:27017/acquisitions_agent"
+          echo "⚠️ MONGODB_URI secret not found in GitHub"
+          echo "Please add your MongoDB Atlas connection string to GitHub secrets:"
+          echo "Name: MONGODB_URI"
+          echo "Value: mongodb+srv://username:password@cluster.mongodb.net/database"
+          exit 1
         fi
         
-        # Set MongoDB URI in Heroku config
-        heroku config:set MONGODB_URI="$MONGODB_URI" --app ${{ env.HEROKU_APP_NAME }}
+        # Verify MongoDB URI is set
+        echo "🔍 Verifying MongoDB configuration..."
+        MONGODB_URI=$(heroku config:get MONGODB_URI --app ${{ env.HEROKU_APP_NAME }})
+        if [ -n "$MONGODB_URI" ] && [ "$MONGODB_URI" != "null" ]; then
+          echo "✅ MongoDB URI set successfully: $MONGODB_URI"
+        else
+          echo "❌ MongoDB URI not set properly"
+          exit 1
+        fi
         
         # Verify all environment variables are set
-        echo "🔍 Verifying environment variables..."
+        echo "🔍 Verifying all environment variables..."
         heroku config --app ${{ env.HEROKU_APP_NAME }}
         
         # Restart the container to pick up new environment variables

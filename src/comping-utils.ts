@@ -14,6 +14,14 @@ export interface Property {
   adjustedPrice?: number;
   distance_miles?: number;
   sale_date?: string;
+  // Phase 2 additions
+  transaction_type?: 'arm_length' | 'family_sale' | 'short_sale' | 'bank_owned';
+  payment_method?: 'cash' | 'conventional' | 'fha' | 'va';
+  seller_concessions?: number;
+  condition_at_sale?: 'poor' | 'fair' | 'average' | 'renovated' | 'like_new';
+  condition_improvements?: boolean;
+  mls_id?: string;
+  county_record_id?: string;
 }
 
 export interface CompScore {
@@ -42,6 +50,35 @@ export interface ARVResult {
     highest: number;
   };
   safety_margin?: number;
+}
+
+export interface RepairEstimate {
+  estimate: number;
+  range_low: number;
+  range_high: number;
+  method: 'condition_based' | 'photo_inferred' | 'user_provided' | 'hybrid';
+  confidence: number;
+  breakdown: {
+    structural: number;
+    cosmetic: number;
+    mechanical: number;
+    other: number;
+  };
+  assumptions: string[];
+  market_adjustments: {
+    inflation_factor: number;
+    regional_multiplier: number;
+    final_adjustment: number;
+  };
+}
+
+export interface CompValidationResult {
+  comp: Property;
+  is_valid: boolean;
+  validation_score: number;
+  issues: string[];
+  warnings: string[];
+  recommendations: string[];
 }
 
 // Condition ranking for comparison
@@ -163,6 +200,63 @@ export function calculateWholesalePotentialScore(subject: Property, comp: Proper
 }
 
 /**
+ * Advanced comp validation for wholesaling
+ */
+export function validateCompForWholesaling(comp: Property): CompValidationResult {
+  const issues: string[] = [];
+  const warnings: string[] = [];
+  const recommendations: string[] = [];
+  let validationScore = 1.0;
+  
+  // Check transaction type
+  if (comp.transaction_type === 'short_sale') {
+    issues.push('Short sale - unreliable for valuation');
+    validationScore -= 0.3;
+  }
+  
+  if (comp.transaction_type === 'family_sale') {
+    warnings.push('Family sale - may not reflect market value');
+    validationScore -= 0.2;
+  }
+  
+  // Check payment method
+  if (comp.payment_method === 'cash') {
+    recommendations.push('Cash transaction - more reliable');
+    validationScore += 0.1;
+  }
+  
+  // Check seller concessions
+  if (comp.seller_concessions && comp.seller_concessions > 0) {
+    warnings.push(`Seller concessions: $${comp.seller_concessions.toLocaleString()}`);
+    validationScore -= 0.1;
+  }
+  
+  // Check condition improvements
+  if (comp.condition_improvements) {
+    warnings.push('Property condition improved between listing and sale');
+    validationScore -= 0.15;
+  }
+  
+  // Check for condition changes
+  if (comp.condition_at_sale && comp.condition_at_sale !== comp.condition) {
+    issues.push('Condition changed between listing and sale');
+    validationScore -= 0.25;
+  }
+  
+  // Ensure minimum validation score
+  validationScore = Math.max(0, validationScore);
+  
+  return {
+    comp,
+    is_valid: validationScore >= 0.6,
+    validation_score: validationScore,
+    issues,
+    warnings,
+    recommendations
+  };
+}
+
+/**
  * Enhanced comp scoring with wholesaling focus
  */
 export function calculateCompScore(comp: Property, subject: Property): CompScore {
@@ -251,26 +345,39 @@ export function calculateWholesalingARV(comps: Property[]): ARVResult {
 }
 
 /**
- * Filter comps for wholesaling optimization
+ * Filter comps for wholesaling optimization (Phase 2 Enhanced)
  */
 export function filterCompsForWholesaling(comps: Property[], subject: Property): Property[] {
   return comps.filter(comp => {
-    // Avoid renovated comps for distressed subjects
+    // Phase 1: Basic condition filtering
     if (comp.condition === 'renovated' && subject.condition === 'fair') {
       return false;
     }
     
-    // Avoid like-new comps for poor condition subjects
     if (comp.condition === 'like_new' && subject.condition === 'poor') {
       return false;
     }
     
-    // Prefer similar condition comps (within 2 ranks)
     const conditionDifference = Math.abs(
       getConditionRank(comp.condition) - getConditionRank(subject.condition)
     );
     if (conditionDifference > 2) {
       return false;
+    }
+    
+    // Phase 2: Advanced validation
+    const validation = validateCompForWholesaling(comp);
+    if (!validation.is_valid) {
+      return false;
+    }
+    
+    // Additional wholesaling filters
+    if (comp.transaction_type === 'short_sale') {
+      return false; // Exclude short sales
+    }
+    
+    if (comp.condition_improvements) {
+      return false; // Exclude properties with condition improvements
     }
     
     return true;
@@ -306,5 +413,97 @@ export function getCompQualityMetrics(comps: Property[], subject: Property) {
     topCompScore: scoredComps[0]?.score || 0,
     bottomCompScore: scoredComps[scoredComps.length - 1]?.score || 0,
     scoreRange: (scoredComps[0]?.score || 0) - (scoredComps[scoredComps.length - 1]?.score || 0)
+  };
+}
+
+/**
+ * Enhanced repair cost estimation for wholesaling
+ */
+export function estimateRepairCosts(
+  subject: Property, 
+  userEstimate?: number,
+  photos?: string[]
+): RepairEstimate {
+  const conditionBasedRanges = {
+    'poor': { min: 40, max: 80 },
+    'fair': { min: 25, max: 50 },
+    'average': { min: 15, max: 35 },
+    'renovated': { min: 5, max: 15 },
+    'like_new': { min: 0, max: 10 }
+  };
+  
+  const condition = subject.condition;
+  const gla = subject.gla_sqft;
+  const range = conditionBasedRanges[condition];
+  
+  // Calculate base repair costs
+  const baseMin = range.min * gla;
+  const baseMax = range.max * gla;
+  const baseEstimate = (baseMin + baseMax) / 2;
+  
+  // Apply market adjustments
+  const inflationFactor = 1.15; // 15% inflation buffer
+  const regionalMultiplier = 1.0; // Can be adjusted based on market
+  const finalAdjustment = inflationFactor * regionalMultiplier;
+  
+  // Calculate final estimates
+  const finalMin = baseMin * finalAdjustment;
+  const finalMax = baseMax * finalAdjustment;
+  const finalEstimate = baseEstimate * finalAdjustment;
+  
+  // Determine method and confidence
+  let method: 'condition_based' | 'photo_inferred' | 'user_provided' | 'hybrid' = 'condition_based';
+  let confidence = 0.7;
+  
+  if (userEstimate) {
+    method = 'user_provided';
+    confidence = 0.9;
+  }
+  
+  if (photos && photos.length > 0) {
+    method = 'hybrid';
+    confidence = Math.min(0.95, confidence + 0.1);
+  }
+  
+  // Breakdown by category (simplified)
+  const structural = finalEstimate * 0.4;
+  const cosmetic = finalEstimate * 0.3;
+  const mechanical = finalEstimate * 0.2;
+  const other = finalEstimate * 0.1;
+  
+  // Generate assumptions
+  const assumptions = [
+    `Based on ${condition} condition assessment`,
+    `Includes 15% inflation buffer`,
+    `Assumes standard market conditions`,
+    `May vary based on specific property issues`
+  ];
+  
+  if (userEstimate) {
+    assumptions.push('User-provided estimate included in calculation');
+  }
+  
+  if (photos && photos.length > 0) {
+    assumptions.push('Photo analysis considered in estimate');
+  }
+  
+  return {
+    estimate: Math.round(finalEstimate),
+    range_low: Math.round(finalMin),
+    range_high: Math.round(finalMax),
+    method,
+    confidence,
+    breakdown: {
+      structural: Math.round(structural),
+      cosmetic: Math.round(cosmetic),
+      mechanical: Math.round(mechanical),
+      other: Math.round(other)
+    },
+    assumptions,
+    market_adjustments: {
+      inflation_factor: inflationFactor,
+      regional_multiplier: regionalMultiplier,
+      final_adjustment: finalAdjustment
+    }
   };
 }

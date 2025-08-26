@@ -64,6 +64,13 @@
         "avoid_renovated_comps_for_distressed_subject": true,
         "condition_adjustment_multiplier": 1.2,
         "distressed_property_bonus": 0.85
+      },
+      "advanced_validation": {
+        "arm_length_transaction_check": true,
+        "short_sale_exclusion": true,
+        "cash_transaction_preference": true,
+        "seller_concession_adjustment": true,
+        "property_condition_changes": true
       }
     },
     "adjustments": {
@@ -83,11 +90,25 @@
         "min": 5000,
         "max": 15000
       },
-      "renovation_condition": {
-        "typical_range_min": 20000,
-        "typical_range_max": 50000,
-        "market_dependent": true
+          "renovation_condition": {
+      "typical_range_min": 20000,
+      "typical_range_max": 50000,
+      "market_dependent": true
+    },
+    "repair_cost_estimation": {
+      "condition_based_ranges": {
+        "poor": {"min": 40, "max": 80, "unit": "per_sqft"},
+        "fair": {"min": 25, "max": 50, "unit": "per_sqft"},
+        "average": {"min": 15, "max": 35, "unit": "per_sqft"},
+        "renovated": {"min": 5, "max": 15, "unit": "per_sqft"},
+        "like_new": {"min": 0, "max": 10, "unit": "per_sqft"}
       },
+      "market_specific_adjustments": true,
+      "inflation_factor": 1.15,
+      "photo_analysis_enabled": true,
+      "photo_confidence_threshold": 0.8,
+      "fallback_methods": ["condition_based", "photo_inferred", "user_provided"]
+    },
       "basement_finished_space": {
         "market_dependent": true
       }
@@ -110,7 +131,12 @@
       "avoid_renovated_comps": true,
       "focus_on_distressed": true,
       "target_minimum_margin": 0.25,
-      "preferred_margin": 0.35
+      "preferred_margin": 0.35,
+      "comp_quality_threshold": 0.6,
+      "max_condition_difference": 2,
+      "prefer_arm_length_transactions": true,
+      "exclude_short_sales": true,
+      "prefer_cash_transactions": true
     },
     "arv_calculation": {
       "method": "wholesaling_weighted_median",

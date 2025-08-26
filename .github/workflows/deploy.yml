@@ -54,10 +54,20 @@ jobs:
           # Pull latest changes
           git pull origin main
           
-          # Copy environment file if it exists
-          if [ -f ~/.env ]; then
-            cp ~/.env .env
-          fi
+          # Create production environment file
+          cat > .env << 'ENVEOF'
+        NODE_ENV=production
+        PORT=3000
+        TEST_MODE=false
+        SHOW_JSON_PAYLOAD=false
+        ASSIGNMENT_FEE_MIN=10000
+        DEFAULT_DISPO_WINDOW=45
+        MONGODB_URI=mongodb://admin:password@localhost:27017/acquisitions_agent?authSource=admin
+        OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+        SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
+        SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}
+        SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}
+        ENVEOF
           
           # Stop existing containers
           docker-compose down

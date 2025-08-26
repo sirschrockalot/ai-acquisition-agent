@@ -227,4 +227,4 @@ heroku logs --app ai-acquisition-agent > app-logs.txt
 **Your AI agent is now live on Heroku!** 🚀✨
 
 <!-- Test deployment trigger - Heroku container deployment ready! -->
-<!-- Testing fixed Heroku CLI installation in GitHub Actions -->
+<!-- Testing MongoDB Atlas connection with existing cluster -->

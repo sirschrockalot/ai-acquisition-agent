@@ -42,8 +42,25 @@ jobs:
         # Add Heroku to PATH
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         
-        # Login to Heroku
+        # Login to Heroku using API key
         echo ${{ secrets.HEROKU_API_KEY }} | heroku auth:token
+        
+        # Alternative authentication method
+        heroku auth:token ${{ secrets.HEROKU_API_KEY }}
+        
+        # Verify authentication
+        heroku auth:whoami || {
+          echo "❌ Heroku authentication failed"
+          echo "🔍 Trying alternative authentication method..."
+          echo ${{ secrets.HEROKU_API_KEY }} > ~/.netrc
+          echo "machine api.heroku.com" >> ~/.netrc
+          echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
+          echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
+          echo "machine git.heroku.com" >> ~/.netrc
+          echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
+          echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
+          chmod 600 ~/.netrc
+        }
         
         # Ensure app is configured for Docker deployment
         heroku stack:set container --app ${{ env.HEROKU_APP_NAME }} || echo "App already set to container stack"
@@ -77,6 +94,15 @@ jobs:
         # Verify app.json configuration
         echo "🔧 Verifying container deployment configuration..."
         cat app.json
+        
+        # Final authentication verification
+        echo "🔐 Verifying Heroku authentication..."
+        if heroku auth:whoami; then
+          echo "✅ Heroku authentication successful"
+        else
+          echo "❌ Heroku authentication failed - cannot proceed"
+          exit 1
+        fi
         
     - name: 🐳 Build and Push Docker Container
       run: |

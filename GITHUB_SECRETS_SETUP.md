@@ -91,6 +91,18 @@ Secret name: SLACK_APP_TOKEN
 Secret value: xapp-your-slack-app-token-here
 ```
 
+#### **Heroku API Key (Optional - for Heroku deployment)**
+```
+Secret name: HEROKU_API_KEY
+Secret value: your-heroku-api-key-here
+```
+
+#### **Heroku Email (Optional - for Heroku deployment)**
+```
+Secret name: HEROKU_EMAIL
+Secret value: your-heroku-email@example.com
+```
+
 ### **Step 3: Verify Secrets**
 After adding all secrets, you should see:
 ```
@@ -99,6 +111,8 @@ OPENAI_API_KEY              •••••••••••••••••�
 SLACK_BOT_TOKEN             ••••••••••••••••••
 SLACK_SIGNING_SECRET        ••••••••••••••••••
 SLACK_APP_TOKEN             ••••••••••••••••••
+HEROKU_API_KEY              ••••••••••••••••••
+HEROKU_EMAIL                ••••••••••••••••••
 ```
 
 ## 🔒 Secret Management
@@ -141,6 +155,7 @@ SLACK_BOT_TOKEN_STAGING
 ### **In GitHub Actions Workflows**
 Your secrets are automatically injected into the deployment process:
 
+#### **DigitalOcean Deployment**
 ```yaml
 # The workflow creates a .env file on the droplet:
 cat > .env << 'ENVEOF'
@@ -151,6 +166,15 @@ SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
 SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}
 SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}
 ENVEOF
+```
+
+#### **Heroku Deployment**
+```yaml
+# The workflow sets environment variables on Heroku:
+heroku config:set OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+heroku config:set SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}"
+heroku config:set SLACK_SIGNING_SECRET="${{ secrets.SLACK_SIGNING_SECRET }}"
+heroku config:set SLACK_APP_TOKEN="${{ secrets.SLACK_APP_TOKEN }}"
 ```
 
 ### **Secret Injection Process**
@@ -243,6 +267,13 @@ curl -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
 - [ ] `SLACK_BOT_TOKEN` - Slack bot authentication
 - [ ] `SLACK_SIGNING_SECRET` - Slack webhook verification
 - [ ] `SLACK_APP_TOKEN` - Slack app authentication
+
+### **Optional Secrets (for alternative deployments)**
+- [ ] `HEROKU_API_KEY` - Heroku API access (for Heroku deployment)
+- [ ] `HEROKU_EMAIL` - Heroku account email (for Heroku deployment)
+- [ ] `RAILWAY_TOKEN` - Railway CLI token (for Railway deployment)
+- [ ] `RAILWAY_PROJECT_ID` - Railway project ID (for Railway deployment)
+- [ ] `FLY_API_TOKEN` - Fly.io API token (for Fly.io deployment)
 
 ### **Optional Secrets**
 - [ ] `SLACK_WEBHOOK_URL` - Slack notifications

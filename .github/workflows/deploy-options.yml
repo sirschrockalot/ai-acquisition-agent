@@ -1,0 +1,311 @@
+name: 🚀 Multi-Platform Deployment Options
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Deployment Platform'
+        required: true
+        default: 'heroku'
+        type: choice
+        options:
+        - heroku
+        - digitalocean
+        - railway
+        - flyio
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+jobs:
+  deploy-heroku:
+    if: inputs.platform == 'heroku'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔐 Setup Heroku Container Registry
+      uses: akhileshns/heroku-deploy@v3.12.14
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: ai-acquisition-agent
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "."
+        
+    - name: 🐳 Build and Push Docker Container
+      run: |
+        # Login to Heroku Container Registry
+        echo ${{ secrets.HEROKU_API_KEY }} | docker login --username=${{ secrets.HEROKU_EMAIL }} --password-stdin registry.heroku.com
+        
+        # Build Docker image
+        docker build -t registry.heroku.com/ai-acquisition-agent/web .
+        
+        # Push to Heroku Container Registry
+        docker push registry.heroku.com/ai-acquisition-agent/web
+        
+        # Release the container
+        heroku container:release web --app ai-acquisition-agent
+        
+    - name: 🔧 Configure environment variables
+      run: |
+        heroku config:set NODE_ENV=production --app ai-acquisition-agent
+        heroku config:set PORT=3000 --app ai-acquisition-agent
+        heroku config:set TEST_MODE=false --app ai-acquisition-agent
+        heroku config:set SHOW_JSON_PAYLOAD=false --app ai-acquisition-agent
+        heroku config:set ASSIGNMENT_FEE_MIN=10000 --app ai-acquisition-agent
+        heroku config:set DEFAULT_DISPO_WINDOW=45 --app ai-acquisition-agent
+        heroku config:set OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" --app ai-acquisition-agent
+        heroku config:set SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}" --app ai-acquisition-agent
+        heroku config:set SLACK_SIGNING_SECRET="${{ secrets.SLACK_SIGNING_SECRET }}" --app ai-acquisition-agent
+        heroku config:set SLACK_APP_TOKEN="${{ secrets.SLACK_APP_TOKEN }}" --app ai-acquisition-agent
+        
+    - name: 🗄️ Setup MongoDB (MongoDB Atlas)
+      run: |
+        # Add MongoDB Atlas addon (requires credit card)
+        heroku addons:create mongolab:sandbox --app ai-acquisition-agent || echo "MongoDB Atlas addon not available"
+        
+    - name: ✅ Health check
+      run: |
+        # Wait for deployment
+        sleep 60
+        
+        # Test application health
+        curl -f https://ai-acquisition-agent.herokuapp.com/health || {
+          echo "❌ Health check failed"
+          exit 1
+        }
+        
+        echo "✅ Health check passed"
+        
+    - name: 📊 Deployment summary
+      run: |
+        echo "🎉 Heroku container deployment completed successfully!"
+        echo "🌐 Your AI Agent is now live at: https://ai-acquisition-agent.herokuapp.com"
+        echo "📱 Update your Slack app URL to: https://ai-acquisition-agent.herokuapp.com/slack/events"
+        echo "🐳 Deployed using Docker containers for better reliability and consistency"
+
+  deploy-digitalocean:
+    if: inputs.platform == 'digitalocean'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔐 Setup DigitalOcean credentials
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        
+    - name: 🔍 Get droplet IP
+      id: get-ip
+      run: |
+        DROPLET_IP=$(doctl compute droplet get ai-acquisition-agent --format IPAddress --no-header)
+        echo "droplet_ip=$DROPLET_IP" >> $GITHUB_OUTPUT
+        echo "🌐 Droplet IP: $DROPLET_IP"
+        
+    - name: 📁 Copy deployment files
+      run: |
+        scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          Dockerfile docker-compose.yml .dockerignore \
+          ubuntu@${{ steps.get-ip.outputs.droplet_ip }}:~/
+          
+    - name: 🔧 Deploy application
+      run: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${{ steps.get-ip.outputs.droplet_ip }} << 'EOF'
+          # Navigate to app directory
+          cd ai-acquisition-agent
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Create production environment file
+          cat > .env << 'ENVEOF'
+        NODE_ENV=production
+        PORT=3000
+        TEST_MODE=false
+        SHOW_JSON_PAYLOAD=false
+        ASSIGNMENT_FEE_MIN=10000
+        DEFAULT_DISPO_WINDOW=45
+        MONGODB_URI=mongodb://admin:password@localhost:27017/acquisitions_agent?authSource=admin
+        OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+        SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
+        SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}
+        SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}
+        ENVEOF
+          
+          # Stop existing containers
+          docker-compose down
+          
+          # Build and start new containers
+          docker-compose up -d --build
+          
+          # Wait for containers to be ready
+          sleep 30
+          
+          # Check status
+          docker-compose ps
+          
+          echo "🚀 DigitalOcean deployment completed successfully!"
+        EOF
+        
+    - name: ✅ Health check
+      run: |
+        # Wait for application to be ready
+        sleep 60
+        
+        # Test application health
+        curl -f http://${{ steps.get-ip.outputs.droplet_ip }}:3000/health || {
+          echo "❌ Health check failed"
+          exit 1
+        }
+        
+        echo "✅ Health check passed"
+        
+    - name: 📊 Deployment summary
+      run: |
+        echo "🎉 DigitalOcean deployment completed successfully!"
+        echo "🌐 Your AI Agent is now live at: http://${{ steps.get-ip.outputs.droplet_ip }}:3000"
+        echo "📱 Update your Slack app URL to: http://${{ steps.get-ip.outputs.droplet_ip }}:3000/slack/events"
+
+  deploy-railway:
+    if: inputs.platform == 'railway'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📥 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build application
+      run: npm run build
+      
+    - name: 🔐 Setup Railway
+      uses: railway/cli@v1.0.0
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        
+    - name: 🚂 Deploy to Railway
+      run: |
+        railway login --token ${{ secrets.RAILWAY_TOKEN }}
+        railway link --project ${{ secrets.RAILWAY_PROJECT_ID }}
+        railway up --service ai-acquisition-agent
+        
+    - name: 🔧 Configure environment variables
+      run: |
+        railway variables set NODE_ENV=production
+        railway variables set PORT=3000
+        railway variables set TEST_MODE=false
+        railway variables set SHOW_JSON_PAYLOAD=false
+        railway variables set ASSIGNMENT_FEE_MIN=10000
+        railway variables set DEFAULT_DISPO_WINDOW=45
+        railway variables set OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+        railway variables set SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}"
+        railway variables set SLACK_SIGNING_SECRET="${{ secrets.SLACK_SIGNING_SECRET }}"
+        railway variables set SLACK_APP_TOKEN="${{ secrets.SLACK_APP_TOKEN }}"
+        
+    - name: 📊 Deployment summary
+      run: |
+        echo "🎉 Railway deployment completed successfully!"
+        echo "🌐 Your AI Agent is now live on Railway!"
+        echo "📱 Update your Slack app URL to your Railway domain"
+
+  deploy-flyio:
+    if: inputs.platform == 'flyio'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📥 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build application
+      run: npm run build
+      
+    - name: 🔐 Setup Fly.io
+      uses: superfly/flyctl-actions/setup-flyctl@master
+      
+    - name: 🪰 Deploy to Fly.io
+      run: |
+        flyctl deploy --app ai-acquisition-agent
+        
+    - name: 🔧 Configure secrets
+      run: |
+        flyctl secrets set NODE_ENV=production --app ai-acquisition-agent
+        flyctl secrets set PORT=3000 --app ai-acquisition-agent
+        flyctl secrets set TEST_MODE=false --app ai-acquisition-agent
+        flyctl secrets set SHOW_JSON_PAYLOAD=false --app ai-acquisition-agent
+        flyctl secrets set ASSIGNMENT_FEE_MIN=10000 --app ai-acquisition-agent
+        flyctl secrets set DEFAULT_DISPO_WINDOW=45 --app ai-acquisition-agent
+        flyctl secrets set OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" --app ai-acquisition-agent
+        flyctl secrets set SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}" --app ai-acquisition-agent
+        flyctl secrets set SLACK_SIGNING_SECRET="${{ secrets.SLACK_SIGNING_SECRET }}" --app ai-acquisition-agent
+        flyctl secrets set SLACK_APP_TOKEN="${{ secrets.SLACK_APP_TOKEN }}" --app ai-acquisition-agent
+        
+    - name: ✅ Health check
+      run: |
+        # Wait for deployment
+        sleep 60
+        
+        # Test application health
+        curl -f https://ai-acquisition-agent.fly.dev/health || {
+          echo "❌ Health check failed"
+          exit 1
+        }
+        
+        echo "✅ Health check passed"
+        
+    - name: 📊 Deployment summary
+      run: |
+        echo "🎉 Fly.io deployment completed successfully!"
+        echo "🌐 Your AI Agent is now live at: https://ai-acquisition-agent.fly.dev"
+        echo "📱 Update your Slack app URL to: https://ai-acquisition-agent.fly.dev/slack/events"
+
+  deployment-summary:
+    needs: [deploy-heroku, deploy-digitalocean, deploy-railway, deploy-flyio]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: 📊 Deployment Summary
+      run: |
+        echo "🚀 Deployment Options Summary"
+        echo "=============================="
+        echo "Platform: ${{ github.event.inputs.platform }}"
+        echo "Environment: ${{ github.event.inputs.environment }}"
+        echo "Status: ${{ needs.deploy-heroku.result || needs.deploy-digitalocean.result || needs.deploy-railway.result || needs.deploy-flyio.result }}"
+        echo ""
+        echo "Available Platforms:"
+        echo "✅ Heroku - Container-based, free tier, easy setup"
+        echo "✅ DigitalOcean - VPS-based, full control, $5/month"
+        echo "✅ Railway - Pay-per-use, global CDN, $5 credit/month"
+        echo "✅ Fly.io - Edge deployment, Docker-based, 3 free apps"
+        echo ""
+        echo "To deploy to a different platform, run this workflow again!"

@@ -1,0 +1,119 @@
+name: 🏠 Deploy to Self-Hosted Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  SERVER_HOST: your-server-ip-or-domain
+  SERVER_USER: ubuntu
+  APP_DIR: /opt/ai-acquisition-agent
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📥 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build application
+      run: npm run build
+      
+    - name: 🔐 Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+    - name: 🏠 Deploy to server
+      run: |
+        # Add server to known hosts
+        ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
+        
+        # Copy files to server
+        scp -r src/ package*.json tsconfig.json ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.APP_DIR }}/
+        
+        # SSH into server and deploy
+        ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+          cd ${{ env.APP_DIR }}
+          
+          # Install dependencies
+          npm ci --only=production
+          
+          # Create environment file
+          cat > .env << 'ENVEOF'
+        NODE_ENV=production
+        PORT=3000
+        TEST_MODE=false
+        SHOW_JSON_PAYLOAD=false
+        ASSIGNMENT_FEE_MIN=10000
+        DEFAULT_DISPO_WINDOW=45
+        MONGODB_URI=mongodb://localhost:27017/acquisitions_agent
+        OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+        SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
+        SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}
+        SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}
+        ENVEOF
+          
+          # Restart application
+          sudo systemctl restart ai-acquisition-agent || {
+            echo "Service not found, creating systemd service..."
+            # Create systemd service file
+            sudo tee /etc/systemd/system/ai-acquisition-agent.service > /dev/null << 'SERVICEEOF'
+        [Unit]
+        Description=AI Acquisition Agent
+        After=network.target
+        
+        [Service]
+        Type=simple
+        User=ubuntu
+        WorkingDirectory=${{ env.APP_DIR }}
+        ExecStart=/usr/bin/node dist/index.js
+        Restart=always
+        RestartSec=10
+        Environment=NODE_ENV=production
+        
+        [Install]
+        WantedBy=multi-user.target
+        SERVICEEOF
+            
+            sudo systemctl daemon-reload
+            sudo systemctl enable ai-acquisition-agent
+            sudo systemctl start ai-acquisition-agent
+          }
+          
+          # Wait for service to start
+          sleep 10
+          
+          # Check status
+          sudo systemctl status ai-acquisition-agent
+        EOF
+        
+    - name: ✅ Health check
+      run: |
+        # Wait for deployment
+        sleep 30
+        
+        # Test application health
+        curl -f http://${{ env.SERVER_HOST }}:3000/health || {
+          echo "❌ Health check failed"
+          exit 1
+        }
+        
+        echo "✅ Health check passed"
+        
+    - name: 📊 Deployment summary
+      run: |
+        echo "🎉 Self-hosted deployment completed successfully!"
+        echo "🌐 Your AI Agent is now live at: http://${{ env.SERVER_HOST }}:3000"
+        echo "📱 Update your Slack app URL to: http://${{ env.SERVER_HOST }}:3000/slack/events"

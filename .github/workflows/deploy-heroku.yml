@@ -1,0 +1,77 @@
+name: 🚀 Deploy Container to Heroku
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  HEROKU_APP_NAME: ai-acquisition-agent
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔐 Setup Heroku Container Registry
+      uses: akhileshns/heroku-deploy@v3.12.14
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: ${{ env.HEROKU_APP_NAME }}
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "."
+        
+    - name: 🐳 Build and Push Docker Container
+      run: |
+        # Login to Heroku Container Registry
+        echo ${{ secrets.HEROKU_API_KEY }} | docker login --username=${{ secrets.HEROKU_EMAIL }} --password-stdin registry.heroku.com
+        
+        # Build Docker image
+        docker build -t registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web .
+        
+        # Push to Heroku Container Registry
+        docker push registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
+        
+        # Release the container
+        heroku container:release web --app ${{ env.HEROKU_APP_NAME }}
+        
+    - name: 🔧 Configure environment variables
+      run: |
+        heroku config:set NODE_ENV=production --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set PORT=3000 --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set TEST_MODE=false --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set SHOW_JSON_PAYLOAD=false --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set ASSIGNMENT_FEE_MIN=10000 --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set DEFAULT_DISPO_WINDOW=45 --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}" --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set SLACK_SIGNING_SECRET="${{ secrets.SLACK_SIGNING_SECRET }}" --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set SLACK_APP_TOKEN="${{ secrets.SLACK_APP_TOKEN }}" --app ${{ env.HEROKU_APP_NAME }}
+        
+    - name: 🗄️ Setup MongoDB (MongoDB Atlas)
+      run: |
+        # Add MongoDB Atlas addon (requires credit card)
+        heroku addons:create mongolab:sandbox --app ${{ env.HEROKU_APP_NAME }} || echo "MongoDB Atlas addon not available"
+        
+    - name: ✅ Health check
+      run: |
+        # Wait for deployment
+        sleep 60
+        
+        # Test application health
+        curl -f https://${{ env.HEROKU_APP_NAME }}.herokuapp.com/health || {
+          echo "❌ Health check failed"
+          exit 1
+        }
+        
+        echo "✅ Health check passed"
+        
+    - name: 📊 Deployment summary
+      run: |
+        echo "🎉 Heroku container deployment completed successfully!"
+        echo "🌐 Your AI Agent is now live at: https://${{ env.HEROKU_APP_NAME }}.herokuapp.com"
+        echo "📱 Update your Slack app URL to: https://${{ env.HEROKU_APP_NAME }}.herokuapp.com/slack/events"
+        echo "🐳 Deployed using Docker containers for better reliability and consistency"

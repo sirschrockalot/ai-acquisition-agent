@@ -8,8 +8,11 @@ WORKDIR /app
 COPY package*.json ./
 COPY package-lock.json ./
 
+# Verify files are copied
+RUN ls -la
+
 # Install ALL dependencies (including dev dependencies for build)
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY src/ ./src/

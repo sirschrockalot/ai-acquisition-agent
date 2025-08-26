@@ -1,7 +1,9 @@
 name: 🚀 Deploy Container to Heroku
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI/CD Pipeline - Test & Build"]
+    types: [completed]
     branches: [ main ]
   workflow_dispatch:
 
@@ -11,6 +13,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
     steps:
     - name: 🚀 Checkout code

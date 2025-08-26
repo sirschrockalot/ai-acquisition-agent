@@ -785,7 +785,7 @@ async function main() {
   });
 
   // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (req: any, res: any) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),

@@ -18,9 +18,11 @@ RUN ls -la
 # Install ALL dependencies (including dev dependencies for build)
 RUN npm install
 
-# Copy source code
+# Copy source code and instruction files
 COPY src/ ./src/
 COPY tsconfig.json ./
+COPY agent_instructions.md ./
+COPY comping_rules.json ./
 
 # Build TypeScript
 RUN npm run build

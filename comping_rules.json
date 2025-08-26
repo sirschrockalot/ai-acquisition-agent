@@ -237,6 +237,32 @@
         "deal_pipeline": true,
         "roi_analysis": true
       }
+    },
+    "ai_powered_features": {
+      "photo_analysis": {
+        "enabled": true,
+        "computer_vision": true,
+        "repair_estimation": true,
+        "condition_assessment": true,
+        "damage_detection": true,
+        "quality_confidence": 0.85
+      },
+      "predictive_modeling": {
+        "enabled": true,
+        "price_forecasting": true,
+        "market_prediction": true,
+        "trend_forecasting": true,
+        "risk_assessment": true,
+        "ml_confidence_threshold": 0.80
+      },
+      "advanced_risk_management": {
+        "enabled": true,
+        "portfolio_risk": true,
+        "market_volatility": true,
+        "deal_correlation": true,
+        "stress_testing": true,
+        "risk_tolerance": 0.25
+      }
     }
   },
   "selection_scoring": {

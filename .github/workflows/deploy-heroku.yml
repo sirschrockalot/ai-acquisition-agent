@@ -27,19 +27,38 @@ jobs:
         # Add Heroku to PATH
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         
+        # Login to Heroku
+        echo ${{ secrets.HEROKU_API_KEY }} | heroku auth:token
+        
+        # Ensure app is configured for Docker deployment
+        heroku stack:set container --app ${{ env.HEROKU_APP_NAME }} || echo "App already set to container stack"
+        
     - name: 🐳 Build and Push Docker Container
       run: |
+        # Verify we have the necessary files
+        echo "🔍 Checking for required files..."
+        ls -la
+        echo "📦 Package files:"
+        ls -la package*
+        
         # Login to Heroku Container Registry
         echo ${{ secrets.HEROKU_API_KEY }} | docker login --username=${{ secrets.HEROKU_EMAIL }} --password-stdin registry.heroku.com
         
         # Build Docker image
+        echo "🏗️ Building Docker image..."
         docker build -t registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web .
         
         # Push to Heroku Container Registry
+        echo "📤 Pushing to Heroku Container Registry..."
         docker push registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
         
         # Release the container
+        echo "🚀 Releasing container..."
         heroku container:release web --app ${{ env.HEROKU_APP_NAME }}
+        
+        # Verify container is running
+        echo "🔍 Verifying container deployment..."
+        heroku ps --app ${{ env.HEROKU_APP_NAME }}
         
     - name: 🔧 Configure environment variables
       run: |

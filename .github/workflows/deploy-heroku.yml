@@ -160,9 +160,35 @@ jobs:
         heroku config:set HOST=0.0.0.0 --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set LOG_LEVEL=info --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set OPENAI_MODEL=gpt-4o-mini --app ${{ env.HEROKU_APP_NAME }}
+        # Set Slack configuration with verification
+        echo "🔐 Setting Slack configuration..."
         heroku config:set SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}" --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set SLACK_SIGNING_SECRET="${{ secrets.SLACK_SIGNING_SECRET }}" --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set SLACK_APP_TOKEN="${{ secrets.SLACK_APP_TOKEN }}" --app ${{ env.HEROKU_APP_NAME }}
+        
+        # Verify Slack secrets are set
+        echo "🔍 Verifying Slack secrets..."
+        SLACK_BOT_TOKEN=$(heroku config:get SLACK_BOT_TOKEN --app ${{ env.HEROKU_APP_NAME }})
+        SLACK_SIGNING_SECRET=$(heroku config:get SLACK_SIGNING_SECRET --app ${{ env.HEROKU_APP_NAME }})
+        SLACK_APP_TOKEN=$(heroku config:get SLACK_APP_TOKEN --app ${{ env.HEROKU_APP_NAME }})
+        
+        if [ -n "$SLACK_BOT_TOKEN" ] && [ "$SLACK_BOT_TOKEN" != "null" ]; then
+          echo "✅ SLACK_BOT_TOKEN set successfully"
+        else
+          echo "❌ SLACK_BOT_TOKEN not set or empty"
+        fi
+        
+        if [ -n "$SLACK_SIGNING_SECRET" ] && [ "$SLACK_SIGNING_SECRET" != "null" ]; then
+          echo "✅ SLACK_SIGNING_SECRET set successfully"
+        else
+          echo "❌ SLACK_SIGNING_SECRET not set or empty"
+        fi
+        
+        if [ -n "$SLACK_APP_TOKEN" ] && [ "$SLACK_APP_TOKEN" != "null" ]; then
+          echo "✅ SLACK_APP_TOKEN set successfully"
+        else
+          echo "❌ SLACK_APP_TOKEN not set or empty"
+        fi
         
     - name: 🗄️ Setup MongoDB (MongoDB Atlas)
       run: |
@@ -184,6 +210,14 @@ jobs:
         # Verify all environment variables are set
         echo "🔍 Verifying environment variables..."
         heroku config --app ${{ env.HEROKU_APP_NAME }}
+        
+        # Restart the container to pick up new environment variables
+        echo "🔄 Restarting container to apply new environment variables..."
+        heroku restart --app ${{ env.HEROKU_APP_NAME }}
+        
+        # Wait for restart
+        echo "⏳ Waiting for container restart..."
+        sleep 30
         
     - name: ✅ Health check
       run: |

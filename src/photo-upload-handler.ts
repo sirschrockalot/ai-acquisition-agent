@@ -5,6 +5,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import extract from 'extract-zip';
 import { v4 as uuidv4 } from 'uuid';
+import { advancedPhotoAnalyzer, AdvancedPhotoAnalysis } from './advanced-photo-analysis';
 
 export interface PhotoUploadResult {
   upload_id: string;
@@ -13,6 +14,7 @@ export interface PhotoUploadResult {
   failed_photos: number;
   photo_analysis: PhotoAnalysisResult[];
   summary: PhotoAnalysisSummary;
+  advanced_analysis?: AdvancedPhotoAnalysis;
   upload_timestamp: Date;
   processing_time_ms: number;
 }
@@ -140,6 +142,16 @@ export class PhotoUploadHandler {
       // Generate summary
       const summary = this.generateAnalysisSummary(photoAnalysis, propertyType);
       
+      // Perform advanced analysis if we have enough photos
+      let advancedAnalysis: AdvancedPhotoAnalysis | undefined;
+      if (processedCount >= 5) {
+        try {
+          advancedAnalysis = await advancedPhotoAnalyzer.performAdvancedAnalysis(photoAnalysis);
+        } catch (error) {
+          console.error('Error performing advanced analysis:', error);
+        }
+      }
+      
       const result: PhotoUploadResult = {
         upload_id: uploadId,
         total_photos: imageFiles.length,
@@ -147,6 +159,7 @@ export class PhotoUploadHandler {
         failed_photos: failedCount,
         photo_analysis: photoAnalysis,
         summary,
+        advanced_analysis: advancedAnalysis,
         upload_timestamp: new Date(),
         processing_time_ms: Date.now() - startTime
       };

@@ -18,7 +18,7 @@ const { photoUploadHandler } = require('./photo-upload-handler');
 
 // Format photo analysis results for Slack
 function formatPhotoAnalysisResults(uploadResult: any): string {
-  const { summary, photo_analysis, total_photos, processed_photos, processing_time_ms } = uploadResult;
+  const { summary, photo_analysis, total_photos, processed_photos, processing_time_ms, advanced_analysis } = uploadResult;
   
   let formatted = `📸 *PHOTO ANALYSIS COMPLETE*\n\n`;
   formatted += `📊 *Processing Summary:*\n`;
@@ -74,6 +74,64 @@ function formatPhotoAnalysisResults(uploadResult: any): string {
         formatted += `   • Repairs: $${photo.analysis.repair_items.reduce((sum: number, item: any) => sum + item.estimated_cost, 0).toLocaleString()}\n`;
       }
     });
+  }
+  
+  // Advanced Analysis Section
+  if (advanced_analysis) {
+    formatted += `\n🏗️ *ADVANCED STRUCTURAL ASSESSMENT*\n`;
+    formatted += `• Overall Risk Score: ${advanced_analysis.overall_risk_score.toFixed(1)}%\n`;
+    formatted += `• Total Estimated Costs: $${advanced_analysis.total_estimated_costs.total.toLocaleString()}\n\n`;
+    
+    // Structural Assessment
+    formatted += `🏠 *Structural Systems:*\n`;
+    formatted += `• Foundation: ${advanced_analysis.structural_assessment.foundation.condition.toUpperCase()} ($${advanced_analysis.structural_assessment.foundation.estimated_repair_cost.toLocaleString()})\n`;
+    formatted += `• Roof: ${advanced_analysis.structural_assessment.roof.condition.toUpperCase()} ($${advanced_analysis.structural_assessment.roof.estimated_repair_cost.toLocaleString()})\n`;
+    formatted += `• Electrical: ${advanced_analysis.structural_assessment.electrical.condition.toUpperCase()} ($${advanced_analysis.structural_assessment.electrical.estimated_repair_cost.toLocaleString()})\n`;
+    formatted += `• Plumbing: ${advanced_analysis.structural_assessment.plumbing.condition.toUpperCase()} ($${advanced_analysis.structural_assessment.plumbing.estimated_repair_cost.toLocaleString()})\n`;
+    formatted += `• HVAC: ${advanced_analysis.structural_assessment.hvac.condition.toUpperCase()} ($${advanced_analysis.structural_assessment.hvac.estimated_repair_cost.toLocaleString()})\n\n`;
+    
+    // Building Code Compliance
+    formatted += `📋 *Building Code Compliance:*\n`;
+    formatted += `• Compliance Score: ${advanced_analysis.building_code_compliance.code_compliance_score.toFixed(1)}%\n`;
+    formatted += `• Critical Violations: ${advanced_analysis.building_code_compliance.safety_violations.critical.length}\n`;
+    formatted += `• Major Violations: ${advanced_analysis.building_code_compliance.safety_violations.major.length}\n`;
+    formatted += `• Compliance Cost: $${advanced_analysis.building_code_compliance.estimated_compliance_cost.toLocaleString()}\n\n`;
+    
+    // Environmental Hazards
+    formatted += `⚠️ *Environmental Hazards:*\n`;
+    if (advanced_analysis.environmental_hazards.mold.detected) {
+      formatted += `• Mold: ${advanced_analysis.environmental_hazards.mold.severity.toUpperCase()} ($${advanced_analysis.environmental_hazards.mold.estimated_remediation_cost.toLocaleString()})\n`;
+    }
+    if (advanced_analysis.environmental_hazards.water_damage.detected) {
+      formatted += `• Water Damage: ${advanced_analysis.environmental_hazards.water_damage.severity.toUpperCase()} ($${advanced_analysis.environmental_hazards.water_damage.estimated_repair_cost.toLocaleString()})\n`;
+    }
+    formatted += `• Asbestos Risk: ${advanced_analysis.environmental_hazards.asbestos_risk.risk_level.toUpperCase()}\n`;
+    formatted += `• Lead Paint Risk: ${advanced_analysis.environmental_hazards.lead_paint_risk.risk_level.toUpperCase()}\n\n`;
+    
+    // Energy Efficiency
+    formatted += `⚡ *Energy Efficiency:*\n`;
+    formatted += `• Overall Score: ${advanced_analysis.energy_efficiency.overall_efficiency_score.toFixed(1)}%\n`;
+    formatted += `• Annual Energy Savings: $${advanced_analysis.energy_efficiency.estimated_annual_energy_savings.toLocaleString()}\n`;
+    formatted += `• Insulation: ${advanced_analysis.energy_efficiency.insulation.quality.toUpperCase()}\n`;
+    formatted += `• Windows: ${advanced_analysis.energy_efficiency.windows.efficiency.toUpperCase()}\n\n`;
+    
+    // Critical Issues
+    if (advanced_analysis.critical_issues.length > 0) {
+      formatted += `🚨 *Critical Issues:*\n`;
+      advanced_analysis.critical_issues.forEach((issue: string) => {
+        formatted += `• ${issue}\n`;
+      });
+      formatted += `\n`;
+    }
+    
+    // Recommended Actions
+    if (advanced_analysis.recommended_actions.length > 0) {
+      formatted += `💡 *Recommended Actions:*\n`;
+      advanced_analysis.recommended_actions.forEach((action: string) => {
+        formatted += `• ${action}\n`;
+      });
+      formatted += `\n`;
+    }
   }
   
   return formatted;

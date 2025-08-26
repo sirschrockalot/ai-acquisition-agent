@@ -63,11 +63,23 @@ jobs:
         export PWD=$(pwd)
         echo "🔧 Set PWD to: $PWD"
         
-    - name: 📦 Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+    - name: 📦 Setup Node.js manually
+      run: |
+        echo "📦 Setting up Node.js manually..."
+        
+        # Install Node.js 18.x
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        
+        # Verify installation
+        echo "🔍 Node.js version:"
+        node --version
+        echo "🔍 npm version:"
+        npm --version
+        
+        # Set npm cache directory to current working directory
+        npm config set cache $(pwd)/.npm-cache
+        echo "🔧 Set npm cache to: $(pwd)/.npm-cache"
         
     - name: 📥 Install dependencies
       run: |

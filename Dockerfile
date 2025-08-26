@@ -1,6 +1,10 @@
 # Dockerfile for AI Acquisition Agent
 FROM node:18-alpine
 
+# Build argument to force fresh builds
+ARG BUILD_DATE
+ARG BUILD_VERSION
+
 # Set working directory
 WORKDIR /app
 
@@ -30,6 +34,10 @@ RUN mkdir -p uploads/photos temp/extractions
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
+
+# Add build metadata
+LABEL build-date="${BUILD_DATE}"
+LABEL build-version="${BUILD_VERSION}"
 
 # Expose port
 EXPOSE 3000

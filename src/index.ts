@@ -5,6 +5,7 @@ const OpenAI = require('openai');
 const { promises: fs } = require('fs');
 const { z } = require('zod');
 const path = require('path');
+const express = require('express');
 
 // MongoDB service for learning system
 const { MongoService } = require('./mongo-service');
@@ -263,9 +264,29 @@ async function main() {
     SHOW_JSON_PAYLOAD = 'true', // Toggle for JSON display
   } = process.env as Record<string, string>;
 
+  // Create Express server
+  const server = express();
+  
+  // Create Slack Bolt app
   const app = new App({
     token: SLACK_BOT_TOKEN!,
     signingSecret: SLACK_SIGNING_SECRET!,
+    customRoutes: [
+      {
+        path: '/health',
+        method: ['GET'],
+        handler: (req: any, res: any) => {
+          res.json({ 
+            status: 'ok', 
+            timestamp: new Date().toISOString(),
+            version: '1.0.0',
+            environment: process.env.NODE_ENV || 'development',
+            uptime: process.uptime(),
+            memory: process.memoryUsage()
+          });
+        }
+      }
+    ]
   });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -784,17 +805,7 @@ async function main() {
     });
   });
 
-  // Health check endpoint
-  app.get('/health', (req: any, res: any) => {
-    res.json({ 
-      status: 'ok', 
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      environment: process.env.NODE_ENV || 'development',
-      uptime: process.uptime(),
-      memory: process.memoryUsage()
-    });
-  });
+
 
   // Set up conversation cleanup (every 6 hours)
   setInterval(() => {

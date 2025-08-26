@@ -44,6 +44,18 @@ jobs:
         echo "🔍 Current buildpacks:"
         heroku buildpacks --app ${{ env.HEROKU_APP_NAME }} || echo "No buildpacks configured"
         
+        # Check if app exists and create it if needed
+        echo "🔧 Checking if app exists..."
+        if ! heroku apps:info --app ${{ env.HEROKU_APP_NAME }} >/dev/null 2>&1; then
+          echo "📱 Creating new Heroku app with container stack..."
+          heroku create ${{ env.HEROKU_APP_NAME }} --stack container
+        else
+          echo "✅ App already exists"
+          # Ensure existing app is on container stack
+          echo "🔧 Setting app to container stack..."
+          heroku stack:set container --app ${{ env.HEROKU_APP_NAME }}
+        fi
+        
         # Verify app.json configuration
         echo "🔧 Verifying container deployment configuration..."
         cat app.json
@@ -56,28 +68,13 @@ jobs:
         echo "📦 Package files:"
         ls -la package*
         
-        # Login to Heroku Container Registry
-        echo ${{ secrets.HEROKU_API_KEY }} | docker login --username=${{ secrets.HEROKU_EMAIL }} --password-stdin registry.heroku.com
-        
-        # Build Docker image
-        echo "🏗️ Building Docker image..."
-        docker build -t registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web .
-        
-        # Verify Docker image was built successfully
-        echo "🔍 Docker image details:"
-        docker images registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
-        
-        # Push to Heroku Container Registry
-        echo "📤 Pushing to Heroku Container Registry..."
-        docker push registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
+        # Use heroku container:push instead of manual docker commands
+        echo "🚀 Pushing container to Heroku..."
+        heroku container:push web --app ${{ env.HEROKU_APP_NAME }}
         
         # Release the container
         echo "🚀 Releasing container..."
         heroku container:release web --app ${{ env.HEROKU_APP_NAME }}
-        
-        # Ensure the release was successful
-        echo "🔍 Container release status:"
-        heroku releases --app ${{ env.HEROKU_APP_NAME }} | head -5
         
         # Verify container is running
         echo "🔍 Verifying container deployment..."

@@ -42,24 +42,31 @@ jobs:
         # Add Heroku to PATH
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         
-        # Login to Heroku using API key
-        echo ${{ secrets.HEROKU_API_KEY }} | heroku auth:token
+        # Set Heroku API key as environment variable
+        export HEROKU_API_KEY="${{ secrets.HEROKU_API_KEY }}"
+        export HEROKU_EMAIL="${{ secrets.HEROKU_EMAIL }}"
         
-        # Alternative authentication method
-        heroku auth:token ${{ secrets.HEROKU_API_KEY }}
+        # Create .netrc file for non-interactive authentication
+        echo "machine api.heroku.com" > ~/.netrc
+        echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
+        echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
+        echo "machine git.heroku.com" >> ~/.netrc
+        echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
+        echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
+        chmod 600 ~/.netrc
+        
+        # Set HEROKU_API_KEY environment variable for CLI
+        echo "export HEROKU_API_KEY=${{ secrets.HEROKU_API_KEY }}" >> ~/.bashrc
+        source ~/.bashrc
         
         # Verify authentication
-        heroku auth:whoami || {
-          echo "❌ Heroku authentication failed"
-          echo "🔍 Trying alternative authentication method..."
-          echo ${{ secrets.HEROKU_API_KEY }} > ~/.netrc
-          echo "machine api.heroku.com" >> ~/.netrc
-          echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
-          echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
-          echo "machine git.heroku.com" >> ~/.netrc
-          echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
-          echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
-          chmod 600 ~/.netrc
+        echo "🔐 Testing Heroku authentication..."
+        HEROKU_API_KEY="${{ secrets.HEROKU_API_KEY }}" heroku auth:whoami || {
+          echo "❌ Direct authentication failed, trying with .netrc..."
+          # Test if .netrc authentication works
+          curl -H "Authorization: Bearer ${{ secrets.HEROKU_API_KEY }}" \
+               -H "Accept: application/vnd.heroku+json; version=3" \
+               https://api.heroku.com/account
         }
         
         # Ensure app is configured for Docker deployment

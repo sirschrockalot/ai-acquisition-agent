@@ -50,6 +50,11 @@ jobs:
         heroku config:set ASSIGNMENT_FEE_MIN=10000 --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set DEFAULT_DISPO_WINDOW=45 --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" --app ${{ env.HEROKU_APP_NAME }}
+        
+        # Set additional server configuration
+        heroku config:set HOST=0.0.0.0 --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set LOG_LEVEL=info --app ${{ env.HEROKU_APP_NAME }}
+        heroku config:set OPENAI_MODEL=gpt-4o-mini --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set SLACK_BOT_TOKEN="${{ secrets.SLACK_BOT_TOKEN }}" --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set SLACK_SIGNING_SECRET="${{ secrets.SLACK_SIGNING_SECRET }}" --app ${{ env.HEROKU_APP_NAME }}
         heroku config:set SLACK_APP_TOKEN="${{ secrets.SLACK_APP_TOKEN }}" --app ${{ env.HEROKU_APP_NAME }}
@@ -58,6 +63,22 @@ jobs:
       run: |
         # Add MongoDB Atlas addon (requires credit card)
         heroku addons:create mongolab:sandbox --app ${{ env.HEROKU_APP_NAME }} || echo "MongoDB Atlas addon not available"
+        
+        # Get MongoDB connection string and set it
+        MONGODB_URI=$(heroku config:get MONGODB_URI --app ${{ env.HEROKU_APP_NAME }})
+        if [ -n "$MONGODB_URI" ]; then
+          echo "✅ MongoDB URI found: $MONGODB_URI"
+        else
+          echo "⚠️ MongoDB URI not found, setting default"
+          MONGODB_URI="mongodb://localhost:27017/acquisitions_agent"
+        fi
+        
+        # Set MongoDB URI in Heroku config
+        heroku config:set MONGODB_URI="$MONGODB_URI" --app ${{ env.HEROKU_APP_NAME }}
+        
+        # Verify all environment variables are set
+        echo "🔍 Verifying environment variables..."
+        heroku config --app ${{ env.HEROKU_APP_NAME }}
         
     - name: ✅ Health check
       run: |

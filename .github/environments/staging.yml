@@ -1,0 +1,16 @@
+name: staging
+on:
+  branch:
+    - develop
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types:
+      - completed
+    branches:
+      - develop
+
+protection_rules:
+  wait_timer: 2
+  deployment_branch_policy:
+    protected_branches: false
+    custom_branch_policies: true

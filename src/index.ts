@@ -784,13 +784,25 @@ async function main() {
     });
   });
 
-  // Set up conversation cleanup (every 6 hours)
-  setInterval(() => {
-    const cleanedCount = conversationManager.cleanupOldConversations();
-    if (cleanedCount > 0) {
-      console.log(`🧹 Cleaned up ${cleanedCount} old conversations`);
-    }
-  }, 6 * 60 * 60 * 1000); // 6 hours
+  // Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
+  });
+});
+
+// Set up conversation cleanup (every 6 hours)
+setInterval(() => {
+  const cleanedCount = conversationManager.cleanupOldConversations();
+  if (cleanedCount > 0) {
+    console.log(`🧹 Cleaned up ${cleanedCount} old conversations`);
+  }
+}, 6 * 60 * 60 * 1000); // 6 hours
 
   await app.start(Number(PORT));
   console.log(`⚡️ Acquisitions Agent running on :${PORT}`);

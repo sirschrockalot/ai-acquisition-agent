@@ -1,0 +1,94 @@
+name: 🚀 Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+env:
+  DROPLET_NAME: ai-acquisition-agent
+  REGION: nyc1
+  SIZE: s-2vcpu-2gb
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔐 Setup DigitalOcean credentials
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        
+    - name: 🔍 Get droplet IP
+      id: get-ip
+      run: |
+        DROPLET_IP=$(doctl compute droplet get ${{ env.DROPLET_NAME }} --format IPAddress --no-header)
+        echo "droplet_ip=$DROPLET_IP" >> $GITHUB_OUTPUT
+        echo "🌐 Droplet IP: $DROPLET_IP"
+        
+    - name: 📁 Copy deployment files
+      run: |
+        scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          Dockerfile docker-compose.yml .dockerignore \
+          ubuntu@${{ steps.get-ip.outputs.droplet_ip }}:~/
+          
+    - name: 🔧 Deploy application
+      run: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${{ steps.get-ip.outputs.droplet_ip }} << 'EOF'
+          # Navigate to app directory
+          cd ai-acquisition-agent
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Copy environment file if it exists
+          if [ -f ~/.env ]; then
+            cp ~/.env .env
+          fi
+          
+          # Stop existing containers
+          docker-compose down
+          
+          # Build and start new containers
+          docker-compose up -d --build
+          
+          # Wait for containers to be ready
+          sleep 30
+          
+          # Check status
+          docker-compose ps
+          
+          echo "🚀 Deployment completed successfully!"
+        EOF
+        
+    - name: ✅ Health check
+      run: |
+        # Wait for application to be ready
+        sleep 60
+        
+        # Test application health
+        curl -f http://${{ steps.get-ip.outputs.droplet_ip }}:3000/health || {
+          echo "❌ Health check failed"
+          exit 1
+        }
+        
+        echo "✅ Health check passed"
+        
+    - name: 📊 Deployment summary
+      run: |
+        echo "🎉 Deployment completed successfully!"
+        echo "🌐 Your AI Agent is now live at: http://${{ steps.get-ip.outputs.droplet_ip }}:3000"
+        echo "📱 Update your Slack app URL to: http://${{ steps.get-ip.outputs.droplet_ip }}:3000/slack/events"

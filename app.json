@@ -1,0 +1,28 @@
+{
+  "name": "ai-acquisition-agent",
+  "stack": "container",
+  "description": "AI-powered acquisition agent for real estate",
+  "repository": "https://github.com/sirschrockalot/ai-acquisition-agent",
+  "keywords": ["ai", "real-estate", "acquisition", "slack-bot"],
+  "env": {
+    "NODE_ENV": {
+      "description": "Environment mode",
+      "value": "production"
+    },
+    "PORT": {
+      "description": "Server port",
+      "value": "3000"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    "mongolab:sandbox"
+  ],
+  "buildpacks": [],
+  "stack": "container"
+}

@@ -33,6 +33,21 @@ jobs:
         # Ensure app is configured for Docker deployment
         heroku stack:set container --app ${{ env.HEROKU_APP_NAME }} || echo "App already set to container stack"
         
+        # Remove any existing buildpacks to force Docker-only deployment
+        heroku buildpacks:clear --app ${{ env.HEROKU_APP_NAME }} || echo "No buildpacks to clear"
+        
+        # Verify we're using container stack
+        echo "🔍 Current Heroku stack:"
+        heroku stack --app ${{ env.HEROKU_APP_NAME }}
+        
+        # Ensure no buildpacks are configured
+        echo "🔍 Current buildpacks:"
+        heroku buildpacks --app ${{ env.HEROKU_APP_NAME }} || echo "No buildpacks configured"
+        
+        # Verify app.json configuration
+        echo "🔧 Verifying container deployment configuration..."
+        cat app.json
+        
     - name: 🐳 Build and Push Docker Container
       run: |
         # Verify we have the necessary files
@@ -48,6 +63,10 @@ jobs:
         echo "🏗️ Building Docker image..."
         docker build -t registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web .
         
+        # Verify Docker image was built successfully
+        echo "🔍 Docker image details:"
+        docker images registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
+        
         # Push to Heroku Container Registry
         echo "📤 Pushing to Heroku Container Registry..."
         docker push registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
@@ -55,6 +74,10 @@ jobs:
         # Release the container
         echo "🚀 Releasing container..."
         heroku container:release web --app ${{ env.HEROKU_APP_NAME }}
+        
+        # Ensure the release was successful
+        echo "🔍 Container release status:"
+        heroku releases --app ${{ env.HEROKU_APP_NAME }} | head -5
         
         # Verify container is running
         echo "🔍 Verifying container deployment..."

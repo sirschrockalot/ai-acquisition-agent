@@ -36,6 +36,9 @@ jobs:
         # Remove any existing buildpacks to force Docker-only deployment
         heroku buildpacks:clear --app ${{ env.HEROKU_APP_NAME }} || echo "No buildpacks to clear"
         
+        # Explicitly set no buildpacks
+        heroku buildpacks:set --index 1 --app ${{ env.HEROKU_APP_NAME }} || echo "No buildpacks to set"
+        
         # Verify we're using container stack
         echo "🔍 Current Heroku stack:"
         heroku stack --app ${{ env.HEROKU_APP_NAME }}
@@ -68,13 +71,28 @@ jobs:
         echo "📦 Package files:"
         ls -la package*
         
-        # Use heroku container:push instead of manual docker commands
-        echo "🚀 Pushing container to Heroku..."
-        heroku container:push web --app ${{ env.HEROKU_APP_NAME }}
-        
-        # Release the container
-        echo "🚀 Releasing container..."
-        heroku container:release web --app ${{ env.HEROKU_APP_NAME }}
+        # Try heroku container:push first, fallback to manual Docker if needed
+        echo "🚀 Attempting heroku container:push..."
+        if heroku container:push web --force --app ${{ env.HEROKU_APP_NAME }}; then
+          echo "✅ heroku container:push succeeded"
+        else
+          echo "⚠️ heroku container:push failed, trying manual Docker deployment..."
+          
+          # Login to Heroku Container Registry
+          echo ${{ secrets.HEROKU_API_KEY }} | docker login --username=${{ secrets.HEROKU_EMAIL }} --password-stdin registry.heroku.com
+          
+          # Build Docker image
+          echo "🏗️ Building Docker image..."
+          docker build -t registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web .
+          
+          # Push to Heroku Container Registry
+          echo "📤 Pushing to Heroku Container Registry..."
+          docker push registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
+          
+          # Release the container
+          echo "🚀 Releasing container..."
+          heroku container:release web --app ${{ env.HEROKU_APP_NAME }}
+        fi
         
         # Verify container is running
         echo "🔍 Verifying container deployment..."

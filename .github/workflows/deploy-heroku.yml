@@ -2,7 +2,7 @@ name: 🚀 Deploy Container to Heroku
 
 on:
   workflow_run:
-    workflows: ["CI/CD Pipeline - Test & Build"]
+    workflows: ["🔄 CI/CD Pipeline - Test & Build"]
     types: [completed]
     branches: [ main ]
   workflow_dispatch:
@@ -21,6 +21,21 @@ jobs:
       
     - name: 🔐 Setup Heroku CLI
       run: |
+        # Check if required secrets are available
+        if [ -z "${{ secrets.HEROKU_API_KEY }}" ]; then
+          echo "❌ HEROKU_API_KEY secret is missing!"
+          echo "Please add HEROKU_API_KEY to your GitHub repository secrets"
+          exit 1
+        fi
+        
+        if [ -z "${{ secrets.HEROKU_EMAIL }}" ]; then
+          echo "❌ HEROKU_EMAIL secret is missing!"
+          echo "Please add HEROKU_EMAIL to your GitHub repository secrets"
+          exit 1
+        fi
+        
+        echo "✅ Required secrets found"
+        
         # Install Heroku CLI
         curl https://cli-assets.heroku.com/install.sh | sh
         

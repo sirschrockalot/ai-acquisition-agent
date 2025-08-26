@@ -22,6 +22,15 @@ export interface Property {
   condition_improvements?: boolean;
   mls_id?: string;
   county_record_id?: string;
+  // Phase 3 additions
+  zip_code?: string;
+  city?: string;
+  county?: string;
+  school_district?: string;
+  neighborhood?: string;
+  market_condition?: 'hot' | 'cold' | 'stable';
+  inventory_level?: 'low' | 'medium' | 'high';
+  dom_trend?: 'decreasing' | 'stable' | 'increasing';
 }
 
 export interface CompScore {
@@ -79,6 +88,28 @@ export interface CompValidationResult {
   issues: string[];
   warnings: string[];
   recommendations: string[];
+}
+
+export interface MicroMarketData {
+  zip_code: string;
+  market_health_score: number;
+  inventory_level: 'low' | 'medium' | 'high';
+  dom_trend: 'decreasing' | 'stable' | 'increasing';
+  market_condition: 'hot' | 'cold' | 'stable';
+  price_trend: 'increasing' | 'stable' | 'decreasing';
+  seasonal_factor: number;
+  school_district_rating: number;
+  neighborhood_desirability: number;
+}
+
+export interface LocationAnalysis {
+  subject: Property;
+  micro_market: MicroMarketData;
+  boundary_penalties: number;
+  school_district_impact: number;
+  market_trend_adjustment: number;
+  seasonal_adjustment: number;
+  final_location_score: number;
 }
 
 // Condition ranking for comparison
@@ -200,6 +231,55 @@ export function calculateWholesalePotentialScore(subject: Property, comp: Proper
 }
 
 /**
+ * Calculate location score with boundary penalties (Phase 3)
+ */
+export function calculateLocationScore(subject: Property, comp: Property): number {
+  let locationScore = 1.0;
+  
+  // Check zip code match
+  if (subject.zip_code && comp.zip_code && subject.zip_code !== comp.zip_code) {
+    locationScore -= 0.02; // Small penalty for different zip codes
+  }
+  
+  // Check city match
+  if (subject.city && comp.city && subject.city !== comp.city) {
+    locationScore -= 0.04; // Larger penalty for different cities
+  }
+  
+  // Check county match
+  if (subject.county && comp.county && subject.county !== comp.county) {
+    locationScore -= 0.10; // Significant penalty for different counties
+  }
+  
+  // Check school district match
+  if (subject.school_district && comp.school_district && subject.school_district !== comp.school_district) {
+    locationScore -= 0.05; // Penalty for different school districts
+  }
+  
+  // Check neighborhood match
+  if (subject.neighborhood && comp.neighborhood && subject.neighborhood !== comp.neighborhood) {
+    locationScore -= 0.03; // Penalty for different neighborhoods
+  }
+  
+  // Market condition compatibility
+  if (subject.market_condition && comp.market_condition) {
+    if (subject.market_condition === comp.market_condition) {
+      locationScore += 0.05; // Bonus for same market condition
+    } else if (
+      (subject.market_condition === 'hot' && comp.market_condition === 'stable') ||
+      (subject.market_condition === 'stable' && comp.market_condition === 'hot')
+    ) {
+      locationScore += 0.02; // Small bonus for compatible conditions
+    } else {
+      locationScore -= 0.03; // Penalty for incompatible conditions
+    }
+  }
+  
+  // Ensure score stays within bounds
+  return Math.max(0, Math.min(1, locationScore));
+}
+
+/**
  * Advanced comp validation for wholesaling
  */
 export function validateCompForWholesaling(comp: Property): CompValidationResult {
@@ -257,7 +337,7 @@ export function validateCompForWholesaling(comp: Property): CompValidationResult
 }
 
 /**
- * Enhanced comp scoring with wholesaling focus
+ * Enhanced comp scoring with wholesaling focus (Phase 3 Enhanced)
  */
 export function calculateCompScore(comp: Property, subject: Property): CompScore {
   const distanceScore = calculateDistanceScore(comp.distance_miles || 0);
@@ -267,13 +347,16 @@ export function calculateCompScore(comp: Property, subject: Property): CompScore
   const propertyTypeScore = calculatePropertyTypeScore(subject, comp);
   const wholesalePotentialScore = calculateWholesalePotentialScore(subject, comp);
   
+  // Phase 3: Enhanced location scoring
+  const locationScore = calculateLocationScore(subject, comp);
+  
   // Enhanced weights from comping_rules.json
   const finalScore = (
     (distanceScore * 0.20) +
     (recencyScore * 0.20) +
     (glaScore * 0.15) +
     (conditionScore * 0.25) + // INCREASED WEIGHT for condition
-    (0.10) + // location_boundary (placeholder)
+    (locationScore * 0.10) + // Enhanced location scoring
     (propertyTypeScore * 0.05) +
     (0.03) + // style_match (placeholder)
     (wholesalePotentialScore * 0.02)
@@ -287,7 +370,7 @@ export function calculateCompScore(comp: Property, subject: Property): CompScore
       recency: recencyScore,
       gla: glaScore,
       condition: conditionScore,
-      location: 0.10,
+      location: locationScore,
       propertyType: propertyTypeScore,
       style: 0.03,
       wholesalePotential: wholesalePotentialScore
@@ -296,9 +379,9 @@ export function calculateCompScore(comp: Property, subject: Property): CompScore
 }
 
 /**
- * Wholesaling-weighted ARV calculation
+ * Wholesaling-weighted ARV calculation (Phase 3 Enhanced)
  */
-export function calculateWholesalingARV(comps: Property[]): ARVResult {
+export function calculateWholesalingARV(comps: Property[], subject?: Property): ARVResult {
   if (comps.length === 0) {
     throw new Error('No comps provided for ARV calculation');
   }
@@ -322,9 +405,20 @@ export function calculateWholesalingARV(comps: Property[]): ARVResult {
   );
   
   // Apply 5% safety margin for wholesaling
-  const finalARV = weightedARV * 0.95;
+  let finalARV = weightedARV * 0.95;
   
-  // Calculate range
+  // Phase 3: Market condition adjustments
+  if (subject && subject.market_condition) {
+    const marketAdjustments = {
+      'hot': 0.98,      // 2% reduction for hot markets (more competition)
+      'cold': 1.02,     // 2% increase for cold markets (less competition)
+      'stable': 1.00    // No adjustment for stable markets
+    };
+    
+    finalARV *= marketAdjustments[subject.market_condition];
+  }
+  
+  // Calculate range with market condition consideration
   const range = {
     low: Math.min(lowestComp.adjustedPrice || 0, finalARV * 0.92),
     high: Math.max(highestComp.adjustedPrice || 0, finalARV * 1.08)
@@ -334,7 +428,7 @@ export function calculateWholesalingARV(comps: Property[]): ARVResult {
     value: Math.round(finalARV),
     range_low: Math.round(range.low),
     range_high: Math.round(range.high),
-    method: "wholesaling_weighted_median",
+    method: "wholesaling_weighted_median_phase3",
     weights_applied: {
       lowest: 0.40,
       median: 0.35,
@@ -413,6 +507,84 @@ export function getCompQualityMetrics(comps: Property[], subject: Property) {
     topCompScore: scoredComps[0]?.score || 0,
     bottomCompScore: scoredComps[scoredComps.length - 1]?.score || 0,
     scoreRange: (scoredComps[0]?.score || 0) - (scoredComps[scoredComps.length - 1]?.score || 0)
+  };
+}
+
+/**
+ * Analyze micro-market conditions for a specific location
+ */
+export function analyzeMicroMarket(zipCode: string, subjectAddress: string): MicroMarketData {
+  // This would typically integrate with real estate APIs
+  // For now, we'll simulate market analysis based on zip code patterns
+  
+  // Simulate market health based on zip code (this is where you'd integrate real data)
+  const marketHealthScore = Math.random() * 0.4 + 0.6; // 0.6 to 1.0
+  
+  // Determine inventory level based on market conditions
+  let inventoryLevel: 'low' | 'medium' | 'high';
+  if (marketHealthScore > 0.8) {
+    inventoryLevel = 'low'; // Hot market, low inventory
+  } else if (marketHealthScore > 0.6) {
+    inventoryLevel = 'medium'; // Stable market
+  } else {
+    inventoryLevel = 'high'; // Cold market, high inventory
+  }
+  
+  // Determine DOM trend
+  let domTrend: 'decreasing' | 'stable' | 'increasing';
+  if (marketHealthScore > 0.8) {
+    domTrend = 'decreasing'; // Hot market, faster sales
+  } else if (marketHealthScore > 0.6) {
+    domTrend = 'stable'; // Stable market
+  } else {
+    domTrend = 'increasing'; // Cold market, slower sales
+  }
+  
+  // Determine market condition
+  let marketCondition: 'hot' | 'cold' | 'stable';
+  if (marketHealthScore > 0.8) {
+    marketCondition = 'hot';
+  } else if (marketHealthScore < 0.7) {
+    marketCondition = 'cold';
+  } else {
+    marketCondition = 'stable';
+  }
+  
+  // Price trend (inverse of DOM trend)
+  let priceTrend: 'increasing' | 'stable' | 'decreasing';
+  if (domTrend === 'decreasing') {
+    priceTrend = 'increasing';
+  } else if (domTrend === 'increasing') {
+    priceTrend = 'decreasing';
+  } else {
+    priceTrend = 'stable';
+  }
+  
+  // Seasonal factor (simplified)
+  const currentMonth = new Date().getMonth();
+  let seasonalFactor = 1.0;
+  if (currentMonth >= 3 && currentMonth <= 8) {
+    seasonalFactor = 1.05; // Spring/Summer premium
+  } else {
+    seasonalFactor = 0.95; // Fall/Winter discount
+  }
+  
+  // School district rating (simplified)
+  const schoolDistrictRating = Math.random() * 0.4 + 0.6; // 0.6 to 1.0
+  
+  // Neighborhood desirability (simplified)
+  const neighborhoodDesirability = Math.random() * 0.4 + 0.6; // 0.6 to 1.0
+  
+  return {
+    zip_code: zipCode,
+    market_health_score: marketHealthScore,
+    inventory_level: inventoryLevel,
+    dom_trend: domTrend,
+    market_condition: marketCondition,
+    price_trend: priceTrend,
+    seasonal_factor: seasonalFactor,
+    school_district_rating: schoolDistrictRating,
+    neighborhood_desirability: neighborhoodDesirability
   };
 }
 

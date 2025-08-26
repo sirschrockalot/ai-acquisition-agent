@@ -45,9 +45,20 @@
       "avoid_boundaries": [
         "different_school_district",
         "different_neighborhood",
-        "across_major_highway"
+        "across_major_highway",
+        "different_zip_code",
+        "different_city_limits",
+        "different_county"
       ],
-      "boundary_crossing_requires_justification": true
+      "boundary_crossing_requires_justification": true,
+      "location_penalties": {
+        "different_school_district": 0.05,
+        "different_neighborhood": 0.03,
+        "across_major_highway": 0.08,
+        "different_zip_code": 0.02,
+        "different_city_limits": 0.04,
+        "different_county": 0.10
+      }
     },
     "condition_quality": {
       "match_condition_preferred": true,
@@ -146,6 +157,51 @@
         "highest_comp": 0.25
       },
       "margin_safety_factor": 0.95
+    },
+    "location_intelligence": {
+      "micro_market_analysis": true,
+      "school_district_impact": {
+        "enabled": true,
+        "adjustment_range": {"min": -0.10, "max": 0.15}
+      },
+      "neighborhood_boundaries": {
+        "strict_enforcement": true,
+        "cross_boundary_penalty": 0.05
+      },
+      "market_trends": {
+        "include_90_day_trends": true,
+        "trend_adjustment_factor": 0.02,
+        "seasonal_adjustments": true
+      },
+      "zip_code_analysis": {
+        "enabled": true,
+        "market_health_score": true,
+        "inventory_levels": true,
+        "days_on_market_trends": true
+      }
+    },
+    "wholesaling_specific_rules": {
+      "comp_selection": {
+        "prefer_arm_length_transactions": true,
+        "exclude_bank_owned": false,
+        "exclude_short_sales": true,
+        "prefer_cash_transactions": true,
+        "exclude_auction_sales": true,
+        "exclude_estate_sales": true
+      },
+      "margin_optimization": {
+        "target_minimum_margin": 0.25,
+        "preferred_margin": 0.35,
+        "arv_confidence_interval": 0.90,
+        "comp_quality_threshold": 0.7,
+        "max_adjustment_percentage": 0.20
+      },
+      "market_conditions": {
+        "hot_market_adjustment": 0.98,
+        "cold_market_adjustment": 1.02,
+        "stable_market_adjustment": 1.00,
+        "market_condition_detection": true
+      }
     }
   },
   "selection_scoring": {

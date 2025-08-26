@@ -10,6 +10,9 @@ const path = require('path');
 const { MongoService } = require('./mongo-service');
 const mongoService = new MongoService();
 
+// Conversation manager for persistent conversations
+const { conversationManager, propertyConversationProcessor } = require('./conversation-manager');
+
 // Format response for better Slack readability
 function formatSlackResponse(response: string): string {
   try {
@@ -299,6 +302,151 @@ async function main() {
     });
   });
 
+  // Natural conversation handler - no need for @mentions or /acq commands
+  app.message(async ({ message, client }: any) => {
+    // Skip bot messages and messages from the app itself
+    if (message.bot_id || message.user === undefined) {
+      return;
+    }
+    
+    const userId = message.user;
+    const channelId = message.channel;
+    const threadTs = message.thread_ts;
+    const messageText = message.text || '';
+    
+    // Process the message through conversation manager
+    const processingResult = propertyConversationProcessor.processUserInput(
+      userId,
+      channelId,
+      threadTs,
+      messageText
+    );
+    
+    // Only respond if this is property-related or part of an active conversation
+    if (!processingResult.shouldRespond) {
+      return;
+    }
+    
+    // Check if this is a new conversation or continuation
+    const conversation = conversationManager.getConversation(processingResult.conversationId);
+    
+    if (processingResult.isPropertyRelated && !conversation?.current_property) {
+      // New property analysis request
+      try {
+        // Send typing indicator
+        await client.chat.postMessage({
+          channel: channelId,
+          thread_ts: threadTs,
+          text: '🤖 Analyzing your request...'
+        });
+        
+        // Run the acquisition agent
+        const result = await runAcqAgent(
+          `User is asking about property analysis. Message: "${messageText}"\n` +
+          `If an address is present, run full analysis; else, ask for address and optional details.`,
+          userId,
+          channelId
+        );
+        
+        // Update conversation state
+        conversationManager.updateConversationState(
+          processingResult.conversationId,
+          'property_analysis'
+        );
+        
+        // Add agent response to conversation
+        conversationManager.addMessage(
+          processingResult.conversationId,
+          'agent',
+          result,
+          'agent_response'
+        );
+        
+        // Send response
+        await client.chat.postMessage({
+          channel: channelId,
+          thread_ts: threadTs,
+          text: result
+        });
+        
+      } catch (error) {
+        console.error('Error processing property request:', error);
+        await client.chat.postMessage({
+          channel: channelId,
+          thread_ts: threadTs,
+          text: '❌ Sorry, I encountered an error processing your request. Please try again or use `/acq` for direct analysis.'
+        });
+      }
+      
+    } else if (conversation && conversation.current_property) {
+      // Continuing conversation about existing property
+      const contextualResponse = propertyConversationProcessor.generateContextualResponse(
+        processingResult.conversationId,
+        messageText,
+        processingResult.intent
+      );
+      
+      // Add agent response to conversation
+      conversationManager.addMessage(
+        processingResult.conversationId,
+        'agent',
+        contextualResponse,
+        'agent_response'
+      );
+      
+      // Send contextual response
+      await client.chat.postMessage({
+        channel: channelId,
+        thread_ts: threadTs,
+        text: contextualResponse
+      });
+      
+      // If user wants specific analysis, run it
+      if (processingResult.intent === 'find_comps' || 
+          processingResult.intent === 'calculate_arv' || 
+          processingResult.intent === 'estimate_repairs' ||
+          processingResult.intent === 'analyze_deal') {
+        
+        try {
+          await client.chat.postMessage({
+            channel: channelId,
+            thread_ts: threadTs,
+            text: '🔍 Running detailed analysis...'
+          });
+          
+          const analysisResult = await runAcqAgent(
+            `User wants ${processingResult.intent.replace('_', ' ')} for property: ${conversation.current_property.address}\n` +
+            `User message: "${messageText}"\n` +
+            `Provide detailed analysis based on their request.`,
+            userId,
+            channelId
+          );
+          
+          // Update conversation with analysis results
+          conversationManager.storeAnalysisResults(
+            processingResult.conversationId,
+            { [processingResult.intent]: analysisResult }
+          );
+          
+          // Send detailed analysis
+          await client.chat.postMessage({
+            channel: channelId,
+            thread_ts: threadTs,
+            text: analysisResult
+          });
+          
+        } catch (error) {
+          console.error('Error running detailed analysis:', error);
+          await client.chat.postMessage({
+            channel: channelId,
+            thread_ts: threadTs,
+            text: '❌ Sorry, I encountered an error running the analysis. Please try using `/acq` for direct analysis.'
+          });
+        }
+      }
+    }
+  });
+
   // Learning insights command
   app.command('/learn', async ({ command, ack, respond }: any) => {
     await ack();
@@ -434,12 +582,21 @@ async function main() {
     });
   });
 
+  // Set up conversation cleanup (every 6 hours)
+  setInterval(() => {
+    const cleanedCount = conversationManager.cleanupOldConversations();
+    if (cleanedCount > 0) {
+      console.log(`🧹 Cleaned up ${cleanedCount} old conversations`);
+    }
+  }, 6 * 60 * 60 * 1000); // 6 hours
+
   await app.start(Number(PORT));
   console.log(`⚡️ Acquisitions Agent running on :${PORT}`);
   console.log(`🧪 Test Mode: ${TEST_MODE === 'true' ? 'ENABLED' : 'DISABLED'}`);
   console.log(`🧠 Learning System: MongoDB ENABLED`);
   console.log(`🤖 AI Model: ${OPENAI_MODEL}`);
   console.log(`📋 JSON Payload: ${SHOW_JSON_PAYLOAD === 'true' ? 'ENABLED' : 'DISABLED'}`);
+  console.log(`💬 Conversation Persistence: ENABLED`);
 }
 
 main().catch(console.error);

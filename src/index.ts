@@ -295,7 +295,7 @@ async function main() {
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
   // Set up Slack events route - let Slack Bolt handle this
-  server.use('/slack/events', app.receiver.requestListener);
+  server.post('/slack/events', app.receiver.requestListener);
 
   // Load your rulebook & instructions at startup
   let agentInstructions = '';

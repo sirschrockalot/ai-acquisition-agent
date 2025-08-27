@@ -3,42 +3,22 @@
 // This comment ensures Heroku picks up the latest code
 require('dotenv').config();
 
-console.log('🔍 Loading modules...');
-
 const { App } = require('@slack/bolt');
-console.log('✅ Slack Bolt loaded');
-
 const OpenAI = require('openai');
-console.log('✅ OpenAI loaded');
-
 const { promises: fs } = require('fs');
-console.log('✅ fs promises loaded');
-
 const { z } = require('zod');
-console.log('✅ zod loaded');
-
 const path = require('path');
-console.log('✅ path loaded');
-
 const express = require('express');
-console.log('✅ express loaded');
 
 // MongoDB service for learning system
-console.log('🔍 Loading MongoDB service...');
 const { MongoService } = require('./mongo-service');
-console.log('✅ MongoService loaded');
 const mongoService = new MongoService();
-console.log('✅ MongoService instantiated');
 
 // Conversation manager for persistent conversations
-console.log('🔍 Loading conversation manager...');
 const { conversationManager, propertyConversationProcessor } = require('./conversation-manager');
-console.log('✅ Conversation manager loaded');
 
 // Photo upload handler for zip files
-console.log('🔍 Loading photo upload handler...');
 const { photoUploadHandler } = require('./photo-upload-handler');
-console.log('✅ Photo upload handler loaded');
 
 // Format photo analysis results for Slack
 function formatPhotoAnalysisResults(uploadResult: any): string {
@@ -422,9 +402,7 @@ async function main() {
   }
 
   // Slack command handler
-  console.log('🔍 Registering /acq command handler...');
   app.command('/acq', async ({ command, ack, respond }: any) => {
-    console.log('📨 /acq command received:', command.text);
     await ack();
     
     const text = command.text?.trim() || '';
@@ -448,12 +426,9 @@ async function main() {
     
     await respond({ response_type: 'ephemeral', text: answer });
   });
-  console.log('✅ /acq command handler registered');
 
   // Slack mention handler
-  console.log('🔍 Registering app_mention event handler...');
   app.event('app_mention', async ({ event, client }: any) => {
-    console.log('📨 app_mention event received:', event.text);
     const userPrompt = event.text?.replace(/<@[^>]+>\s*/, '') ?? '';
     
     if (!userPrompt.trim()) {
@@ -474,16 +449,13 @@ async function main() {
     
     await client.chat.postMessage({
       channel: event.channel,
-      thread_ts: event.ts,
-      text: result
+        thread_ts: event.ts,
+        text: result
     });
   });
-  console.log('✅ app_mention event handler registered');
 
   // Natural conversation handler - no need for @mentions or /acq commands
-  console.log('🔍 Registering message event handler...');
   app.message(async ({ message, client }: any) => {
-    console.log('📨 message event received:', message.text);
     // Skip bot messages and messages from the app itself
     if (message.bot_id || message.user === undefined) {
       return;
@@ -849,12 +821,9 @@ async function main() {
   }, 6 * 60 * 60 * 1000); // 6 hours
 
   // Start Slack Bolt app
-  console.log('🔍 Starting Slack Bolt app...');
   await app.start();
-  console.log('✅ Slack Bolt app started');
   
   // Start Express server on the specified port
-  console.log('🔍 Starting Express server...');
   server.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🌐 HTTP server listening on port ${PORT}`);
   });

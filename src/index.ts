@@ -1,5 +1,5 @@
 // src/index.ts
-// 🚀 FORCE REBUILD: Latest deployment with Slack Bolt customRoutes fix
+// 🚀 FORCE REBUILD: Latest deployment with Slack Bolt route fix
 // This comment ensures Heroku picks up the latest code
 require('dotenv').config();
 const { App } = require('@slack/bolt');

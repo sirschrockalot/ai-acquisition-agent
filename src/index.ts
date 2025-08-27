@@ -266,10 +266,24 @@ async function main() {
     SHOW_JSON_PAYLOAD = 'true', // Toggle for JSON display
   } = process.env as Record<string, string>;
 
-  // Create Slack Bolt app
+  // Create Slack Bolt app with HTTP server enabled
   const app = new App({
     token: SLACK_BOT_TOKEN!,
     signingSecret: SLACK_SIGNING_SECRET!,
+    // Enable HTTP server for custom routes
+    processBeforeResponse: true,
+  });
+  
+  // Add health endpoint to Slack Bolt's built-in HTTP server
+  app.receiver.app.get('/health', (req: any, res: any) => {
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    });
   });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });

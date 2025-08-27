@@ -266,10 +266,13 @@ async function main() {
     SHOW_JSON_PAYLOAD = 'true', // Toggle for JSON display
   } = process.env as Record<string, string>;
 
-  // Create Slack Bolt app
+  // Create Slack Bolt app with explicit port configuration
   const app = new App({
     token: SLACK_BOT_TOKEN!,
     signingSecret: SLACK_SIGNING_SECRET!,
+    // Explicitly configure the HTTP server
+    port: Number(PORT),
+    host: '0.0.0.0',
   });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });

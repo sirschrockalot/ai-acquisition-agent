@@ -266,29 +266,10 @@ async function main() {
     SHOW_JSON_PAYLOAD = 'true', // Toggle for JSON display
   } = process.env as Record<string, string>;
 
-  // Create Express app for HTTP endpoints
-  const express = require('express');
-  const server = express();
-  
-  // Health check endpoint
-  server.get('/health', (req: any, res: any) => {
-    res.json({ 
-      status: 'ok', 
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      environment: process.env.NODE_ENV || 'development',
-      uptime: process.uptime(),
-      memory: process.memoryUsage()
-    });
-  });
-  
-  // Create Slack Bolt app with custom receiver
+  // Create Slack Bolt app
   const app = new App({
     token: SLACK_BOT_TOKEN!,
     signingSecret: SLACK_SIGNING_SECRET!,
-    receiver: {
-      requestListener: server
-    }
   });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });

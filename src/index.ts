@@ -294,6 +294,9 @@ async function main() {
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
+  // Set up Slack events route - let Slack Bolt handle this
+  server.use('/slack/events', app.receiver.requestListener);
+
   // Load your rulebook & instructions at startup
   let agentInstructions = '';
   let compRules = '';
@@ -806,24 +809,6 @@ async function main() {
       response_type: 'ephemeral',
       text: `Thank you for your ${feedbackType} feedback! This helps improve the bot's responses.`
     });
-  });
-
-  // Handle Slack events manually
-  server.post('/slack/events', async (req: any, res: any) => {
-    try {
-      // Handle Slack verification challenge
-      if (req.body && req.body.challenge) {
-        console.log('🔐 Slack verification challenge received');
-        return res.json({ challenge: req.body.challenge });
-      }
-      
-      // Handle other Slack events
-      console.log('📨 Slack event received:', req.body?.type);
-      await app.receiver.requestListener(req, res);
-    } catch (error) {
-      console.error('❌ Error handling Slack event:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
   });
 
   // Set up conversation cleanup (every 6 hours)

@@ -422,7 +422,9 @@ async function main() {
   }
 
   // Slack command handler
+  console.log('🔍 Registering /acq command handler...');
   app.command('/acq', async ({ command, ack, respond }: any) => {
+    console.log('📨 /acq command received:', command.text);
     await ack();
     
     const text = command.text?.trim() || '';
@@ -446,9 +448,12 @@ async function main() {
     
     await respond({ response_type: 'ephemeral', text: answer });
   });
+  console.log('✅ /acq command handler registered');
 
   // Slack mention handler
+  console.log('🔍 Registering app_mention event handler...');
   app.event('app_mention', async ({ event, client }: any) => {
+    console.log('📨 app_mention event received:', event.text);
     const userPrompt = event.text?.replace(/<@[^>]+>\s*/, '') ?? '';
     
     if (!userPrompt.trim()) {
@@ -473,9 +478,12 @@ async function main() {
       text: result
     });
   });
+  console.log('✅ app_mention event handler registered');
 
   // Natural conversation handler - no need for @mentions or /acq commands
+  console.log('🔍 Registering message event handler...');
   app.message(async ({ message, client }: any) => {
+    console.log('📨 message event received:', message.text);
     // Skip bot messages and messages from the app itself
     if (message.bot_id || message.user === undefined) {
       return;

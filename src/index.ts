@@ -266,16 +266,12 @@ async function main() {
     SHOW_JSON_PAYLOAD = 'true', // Toggle for JSON display
   } = process.env as Record<string, string>;
 
-  // Create Slack Bolt app with HTTP server enabled
-  const app = new App({
-    token: SLACK_BOT_TOKEN!,
-    signingSecret: SLACK_SIGNING_SECRET!,
-    // Enable HTTP server for custom routes
-    processBeforeResponse: true,
-  });
+  // Create Express app for HTTP endpoints
+  const express = require('express');
+  const server = express();
   
-  // Add health endpoint to Slack Bolt's built-in HTTP server
-  app.receiver.app.get('/health', (req: any, res: any) => {
+  // Health check endpoint
+  server.get('/health', (req: any, res: any) => {
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),
@@ -284,6 +280,15 @@ async function main() {
       uptime: process.uptime(),
       memory: process.memoryUsage()
     });
+  });
+  
+  // Create Slack Bolt app with custom receiver
+  const app = new App({
+    token: SLACK_BOT_TOKEN!,
+    signingSecret: SLACK_SIGNING_SECRET!,
+    receiver: {
+      requestListener: server
+    }
   });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });

@@ -841,9 +841,12 @@ async function main() {
   }, 6 * 60 * 60 * 1000); // 6 hours
 
   // Start Slack Bolt app
+  console.log('🔍 Starting Slack Bolt app...');
   await app.start();
+  console.log('✅ Slack Bolt app started');
   
   // Start Express server on the specified port
+  console.log('🔍 Starting Express server...');
   server.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🌐 HTTP server listening on port ${PORT}`);
   });

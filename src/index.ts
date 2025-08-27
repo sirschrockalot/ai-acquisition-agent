@@ -271,18 +271,6 @@ async function main() {
     token: SLACK_BOT_TOKEN!,
     signingSecret: SLACK_SIGNING_SECRET!,
   });
-  
-  // Add health check endpoint using Slack Bolt's built-in HTTP handling
-  app.receiver.app.get('/health', (req: any, res: any) => {
-    res.json({ 
-      status: 'ok', 
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      environment: process.env.NODE_ENV || 'development',
-      uptime: process.uptime(),
-      memory: process.memoryUsage()
-    });
-  });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 

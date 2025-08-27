@@ -274,11 +274,8 @@ async function main() {
   const express = require('express');
   const server = express();
   
-  // Add middleware for parsing JSON requests
-  server.use(express.json());
-  
-  // Health check endpoint
-  server.get('/health', (req: any, res: any) => {
+  // Health check endpoint with JSON parsing
+  server.get('/health', express.json(), (req: any, res: any) => {
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),

@@ -957,7 +957,7 @@ export function assessPortfolioRisk(
   const correlation = deals.length > 1 ? Math.random() * 0.4 - 0.2 : 0; // -0.2 to 0.2
   
   // Calculate concentration risk (geographic and property type)
-  const locations = [...new Set(deals.map(deal => deal.subject_address.split(',')[1]?.trim()))];
+  const locations = Array.from(new Set(deals.map(deal => deal.subject_address.split(',')[1]?.trim())));
   const concentrationRisk = 1 - (locations.length / totalDeals);
   
   // Calculate market exposure

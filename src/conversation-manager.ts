@@ -216,13 +216,13 @@ export class ConversationManager {
   }
   
   /**
-   * Clean up old conversations (older than 24 hours)
+   * Clean up conversations older than 24 hours
    */
   cleanupOldConversations(): number {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     let cleanedCount = 0;
     
-    for (const [conversationId, conversation] of this.conversations.entries()) {
+    for (const [conversationId, conversation] of Array.from(this.conversations.entries())) {
       if (conversation.last_activity < twentyFourHoursAgo) {
         this.conversations.delete(conversationId);
         this.conversationMessages.delete(conversationId);

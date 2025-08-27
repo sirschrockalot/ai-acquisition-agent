@@ -270,6 +270,9 @@ async function main() {
   const express = require('express');
   const server = express();
   
+  // Add middleware for parsing JSON requests
+  server.use(express.json());
+  
   // Health check endpoint
   server.get('/health', (req: any, res: any) => {
     res.json({ 
@@ -288,8 +291,23 @@ async function main() {
     signingSecret: SLACK_SIGNING_SECRET!,
   });
   
-  // Mount Slack Bolt's request handler on Express
-  server.use('/slack/events', app.receiver.requestListener);
+  // Handle Slack events manually
+  server.post('/slack/events', async (req: any, res: any) => {
+    try {
+      // Handle Slack verification challenge
+      if (req.body && req.body.challenge) {
+        console.log('🔐 Slack verification challenge received');
+        return res.json({ challenge: req.body.challenge });
+      }
+      
+      // Handle other Slack events
+      console.log('📨 Slack event received:', req.body?.type);
+      await app.receiver.requestListener(req, res);
+    } catch (error) {
+      console.error('❌ Error handling Slack event:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 

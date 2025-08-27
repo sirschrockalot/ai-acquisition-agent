@@ -266,13 +266,29 @@ async function main() {
     SHOW_JSON_PAYLOAD = 'true', // Toggle for JSON display
   } = process.env as Record<string, string>;
 
-  // Create Slack Bolt app with explicit port configuration
+  // Create Express app for HTTP server
+  const express = require('express');
+  const server = express();
+  
+  // Health check endpoint
+  server.get('/health', (req: any, res: any) => {
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    });
+  });
+  
+  // Create Slack Bolt app with custom receiver
   const app = new App({
     token: SLACK_BOT_TOKEN!,
     signingSecret: SLACK_SIGNING_SECRET!,
-    // Explicitly configure the HTTP server
-    port: Number(PORT),
-    host: '0.0.0.0',
+    receiver: {
+      requestListener: server
+    }
   });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -801,7 +817,14 @@ async function main() {
     }
   }, 6 * 60 * 60 * 1000); // 6 hours
 
-  await app.start(Number(PORT));
+  // Start Slack Bolt app
+  await app.start();
+  
+  // Start Express server on the specified port
+  server.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`🌐 HTTP server listening on port ${PORT}`);
+  });
+  
   console.log(`⚡️ Acquisitions Agent running on :${PORT}`);
   console.log(`🧪 Test Mode: ${TEST_MODE === 'true' ? 'ENABLED' : 'DISABLED'}`);
   console.log(`🧠 Learning System: MongoDB ENABLED`);

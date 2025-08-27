@@ -292,24 +292,6 @@ async function main() {
     token: SLACK_BOT_TOKEN!,
     signingSecret: SLACK_SIGNING_SECRET!,
   });
-  
-  // Handle Slack events manually
-  server.post('/slack/events', async (req: any, res: any) => {
-    try {
-      // Handle Slack verification challenge
-      if (req.body && req.body.challenge) {
-        console.log('🔐 Slack verification challenge received');
-        return res.json({ challenge: req.body.challenge });
-      }
-      
-      // Handle other Slack events
-      console.log('📨 Slack event received:', req.body?.type);
-      await app.receiver.requestListener(req, res);
-    } catch (error) {
-      console.error('❌ Error handling Slack event:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
@@ -827,7 +809,23 @@ async function main() {
     });
   });
 
-
+  // Handle Slack events manually
+  server.post('/slack/events', async (req: any, res: any) => {
+    try {
+      // Handle Slack verification challenge
+      if (req.body && req.body.challenge) {
+        console.log('🔐 Slack verification challenge received');
+        return res.json({ challenge: req.body.challenge });
+      }
+      
+      // Handle other Slack events
+      console.log('📨 Slack event received:', req.body?.type);
+      await app.receiver.requestListener(req, res);
+    } catch (error) {
+      console.error('❌ Error handling Slack event:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
 
   // Set up conversation cleanup (every 6 hours)
   setInterval(() => {

@@ -129,11 +129,12 @@ jobs:
           # Login to Heroku Container Registry
           echo ${{ secrets.HEROKU_API_KEY }} | docker login --username=${{ secrets.HEROKU_EMAIL }} --password-stdin registry.heroku.com
           
-          # Build Docker image with build arguments to force fresh builds
+          # Build Docker image
           echo "🏗️ Building Docker image..."
           docker build \
             --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
             --build-arg BUILD_VERSION=${{ github.sha }} \
+            --build-arg TIMESTAMP=$(date +%s) \
             -t registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web .
           
           # Push to Heroku Container Registry

@@ -4,6 +4,7 @@ FROM node:18-alpine
 # Build argument to force fresh builds
 ARG BUILD_DATE
 ARG BUILD_VERSION
+ARG TIMESTAMP
 
 # Set working directory
 WORKDIR /app

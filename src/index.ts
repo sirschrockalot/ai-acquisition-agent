@@ -256,6 +256,8 @@ function formatSlackResponse(response: string): string {
 }
 
 async function main() {
+  // 🚀 FORCE REBUILD: Latest deployment with manual Slack event handler - $(date)
+  // This comment ensures Heroku picks up the latest code
   const {
     SLACK_BOT_TOKEN,
     SLACK_SIGNING_SECRET,

@@ -2,22 +2,43 @@
 // 🚀 FORCE REBUILD: Latest deployment with Slack Bolt route fix
 // This comment ensures Heroku picks up the latest code
 require('dotenv').config();
+
+console.log('🔍 Loading modules...');
+
 const { App } = require('@slack/bolt');
+console.log('✅ Slack Bolt loaded');
+
 const OpenAI = require('openai');
+console.log('✅ OpenAI loaded');
+
 const { promises: fs } = require('fs');
+console.log('✅ fs promises loaded');
+
 const { z } = require('zod');
+console.log('✅ zod loaded');
+
 const path = require('path');
+console.log('✅ path loaded');
+
 const express = require('express');
+console.log('✅ express loaded');
 
 // MongoDB service for learning system
+console.log('🔍 Loading MongoDB service...');
 const { MongoService } = require('./mongo-service');
+console.log('✅ MongoService loaded');
 const mongoService = new MongoService();
+console.log('✅ MongoService instantiated');
 
 // Conversation manager for persistent conversations
+console.log('🔍 Loading conversation manager...');
 const { conversationManager, propertyConversationProcessor } = require('./conversation-manager');
+console.log('✅ Conversation manager loaded');
 
 // Photo upload handler for zip files
+console.log('🔍 Loading photo upload handler...');
 const { photoUploadHandler } = require('./photo-upload-handler');
+console.log('✅ Photo upload handler loaded');
 
 // Format photo analysis results for Slack
 function formatPhotoAnalysisResults(uploadResult: any): string {

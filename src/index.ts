@@ -266,12 +266,14 @@ async function main() {
     SHOW_JSON_PAYLOAD = 'true', // Toggle for JSON display
   } = process.env as Record<string, string>;
 
-  // Create Express app
-  const express = require('express');
-  const server = express();
+  // Create Slack Bolt app
+  const app = new App({
+    token: SLACK_BOT_TOKEN!,
+    signingSecret: SLACK_SIGNING_SECRET!,
+  });
   
-  // Health check endpoint
-  server.get('/health', (req: any, res: any) => {
+  // Add health check endpoint using Slack Bolt's built-in HTTP handling
+  app.receiver.app.get('/health', (req: any, res: any) => {
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),
@@ -281,15 +283,6 @@ async function main() {
       memory: process.memoryUsage()
     });
   });
-  
-  // Create Slack Bolt app
-  const app = new App({
-    token: SLACK_BOT_TOKEN!,
-    signingSecret: SLACK_SIGNING_SECRET!,
-  });
-  
-  // Mount the Express app on the Slack Bolt app
-  app.receiver.app.use(server);
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 

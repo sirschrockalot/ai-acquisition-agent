@@ -282,14 +282,14 @@ async function main() {
     });
   });
   
-  // Create Slack Bolt app with Express receiver
+  // Create Slack Bolt app
   const app = new App({
     token: SLACK_BOT_TOKEN!,
     signingSecret: SLACK_SIGNING_SECRET!,
-    receiver: {
-      requestListener: server
-    }
   });
+  
+  // Mount the Express app on the Slack Bolt app
+  app.receiver.app.use(server);
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
